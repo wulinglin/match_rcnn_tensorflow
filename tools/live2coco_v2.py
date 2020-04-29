@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Jul 21 21:15:50 2019
-
-@author: loktarxiao
-"""
 
 import json
 import os
@@ -49,7 +44,7 @@ for k, v in class_dict.items():
     })
 
 num_images = 4525
-path_head = '../../train_part_1/'
+path_head = '../../Live_demo_20200117/'
 
 image_path_head = path_head + 'image/'
 image_annos_path_head = path_head + 'image_annotation/'
@@ -75,10 +70,14 @@ for item_id in os.listdir(image_path_head):
 
 sub_index = 0  # the index of ground truth instance
 import cv2
+
+
 def show_image(img):
     cv2.imshow('test', img)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+
 num = -1
 for p in os.listdir(annos_save_path):
     print(p)

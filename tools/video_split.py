@@ -1,36 +1,8 @@
 import json
-
-
-def json_data_view():
-    train_img_dir = "/Users/lingwu/data/deepfashion/train/image"
-    train_json_path = "/home/hzn/match-rcnn/Live_demo_20200117/train.json"
-    valid_img_dir = "/Users/lingwu/data/deepfashion/validation/image"
-    valid_json_path = "/Users/lingwu/PycharmProjects/match_rcnn/tools/valid.json"
-    # with open(valid_json_path) as f:
-    with open(train_json_path) as f:
-        json_content = json.load(fp=f)
-
-    print(json_content.keys())
-    # info": {}, "licenses": [], dict_keys(['info', 'licenses', 'images', 'annotations', 'categories'])
-    print(json_content['info'])
-    print(json_content['licenses'])
-    print('--------images----------', len(json_content['images']))
-    for i in json_content['images'][:1]:
-        print(i.keys())
-        print('images', i)
-    print('--------annotations----------', len(json_content['annotations']))
-    for i in json_content['annotations'][:1]:
-        print('annotations', i.keys())
-        print(i)
-    print('--------categories----------', len(json_content['categories']))
-    for i in json_content['categories'][:1]:
-        print(i.keys())
-        print(i)
-
-
-import cv2  # 导入opencv模块
 import os
 import time
+
+import cv2  # 导入opencv模块
 
 
 def video_split(video_path, save_path):
@@ -50,7 +22,7 @@ def video_split(video_path, save_path):
         rval = False
     while rval:
         rval, frame = vc.read()
-        # 每秒提取5帧图片
+        # 每隔40帧保存一下
         if c % 40 == 0:
             cv2.imwrite(save_path + "/" + str(c) + '.jpg', frame)
             cv2.waitKey(1)
@@ -85,6 +57,33 @@ def video_split_and_save(data_dir, save_dir):
 
     end_time = time.time()
     print("Cost time", start_time - end_time)
+
+
+def json_data_view():
+    train_img_dir = "/Users/lingwu/data/deepfashion/train/image"
+    train_json_path = "/home/hzn/match-rcnn/Live_demo_20200117/train.json"
+    valid_img_dir = "/Users/lingwu/data/deepfashion/validation/image"
+    valid_json_path = "/Users/lingwu/PycharmProjects/match_rcnn/tools/valid.json"
+    # with open(valid_json_path) as f:
+    with open(train_json_path) as f:
+        json_content = json.load(fp=f)
+
+    print(json_content.keys())
+    # info": {}, "licenses": [], dict_keys(['info', 'licenses', 'images', 'annotations', 'categories'])
+    print(json_content['info'])
+    print(json_content['licenses'])
+    print('--------images----------', len(json_content['images']))
+    for i in json_content['images'][:1]:
+        print(i.keys())
+        print('images', i)
+    print('--------annotations----------', len(json_content['annotations']))
+    for i in json_content['annotations'][:1]:
+        print('annotations', i.keys())
+        print(i)
+    print('--------categories----------', len(json_content['categories']))
+    for i in json_content['categories'][:1]:
+        print(i.keys())
+        print(i)
 
 
 if __name__ == "__main__":

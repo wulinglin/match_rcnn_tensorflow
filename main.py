@@ -7,6 +7,8 @@ Created on Sun Jul 21 21:15:50 2019
 
 import sys
 
+from lib.model_mn_v2 import MatchRCNN
+
 sys.dont_write_bytecode = True
 
 import os
@@ -15,7 +17,6 @@ import numpy as np
 from pycocotools.coco import COCO
 from pycocotools import mask as maskUtils
 from lib.config import Config
-from lib.model_new import MaskRCNN
 from lib import utils
 
 
@@ -96,6 +97,12 @@ class DeepFashion2Dataset(utils.Dataset):
                 height=coco.imgs[i]["height"],
                 annotations=coco.loadAnns(coco.getAnnIds(
                     imgIds=[i], catIds=class_ids, iscrowd=None)))
+        # todo 为什么这里可以，而下面train_dataset不能.dataset看数据，那么要怎么看数据
+        # print(coco.dataset.keys())
+        # print(len(coco.dataset['images']), coco.dataset['images'][:2])
+        # print(len(coco.dataset['annotations']), coco.dataset['annotations'][:1])
+        # print(len(coco.dataset['categories']), coco.dataset['categories'][:1])
+
         if return_coco:
             return coco
 
@@ -147,14 +154,14 @@ class DeepFashion2Dataset(utils.Dataset):
             class_id = self.map_source_class_id(
                 "deepfashion2.{}".format(annotation['category_id']))
             if class_id:
-                bbox =annotation['bbox']
+                bbox = annotation['bbox']
 
                 bbox_list.append(bbox)
                 class_ids.append(class_id)
 
         # Pack instance masks into an array
         # if class_ids:
-            # mask = np.stack(instance_masks, axis=2).astype(np.bool)
+        # mask = np.stack(instance_masks, axis=2).astype(np.bool)
         bbox_array = np.array(bbox_list, dtype=np.int32)
         class_ids = np.array(class_ids, dtype=np.int32)
         return class_ids, bbox_array
@@ -247,6 +254,32 @@ class DeepFashion2Dataset(utils.Dataset):
         return m
 
 
+def main_match(mode, config, model_dir=None):
+    from tools.live2deepfashion import get_mn_image_pair
+    from lib.model_new import load_image_gt
+
+    dataset_train = DeepFashion2Dataset()
+    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    dataset_train.prepare()
+
+    img_path_list, label_list = get_mn_image_pair()
+    images, labels = [], label_list
+    for p1, p2 in img_path_list:
+        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
+        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
+                                                                         augment=False,
+                                                                         augmentation=None)
+        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
+        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
+                                                                         augment=False,
+                                                                         augmentation=None)
+        images.append((image_1, image_2))
+
+    match_model = MatchRCNN(mode, config, model_dir)
+    match_model.build_match_v2(images, labels)
+
+
+
 def train(model, config):
     """
     """
@@ -273,7 +306,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Train Match R-CNN for DeepFashion.')
-    parser.add_argument("command",
+    parser.add_argument("--command",
                         metavar="<command>",
                         help="'train' or 'splash'")
     parser.add_argument('--weights', required=False,
@@ -316,49 +349,50 @@ if __name__ == "__main__":
 
         config = InferenceConfig()
     config.display()
+    model_dir = './mask_rcnn_deepfashion2_0001.h5'
+    main_match(mode="training",config=config, model_dir=model_dir)
 
-    # Create model
-    if args.command == "train":
-        model = MaskRCNN(mode="training", config=config,
-                         model_dir=args.logs)
-    else:
-        model = MaskRCNN(mode="inference", config=config,
-                         model_dir=args.logs)
-
-    # Select weights file to load
-    if args.weights.lower() == "coco":
-        weights_path = COCO_WEIGHTS_PATH
-        # Download weights file
-        if not os.path.exists(weights_path):
-            utils.download_trained_weights(weights_path)
-    elif args.weights.lower() == "last":
-        # Find last trained weights
-        weights_path = model.find_last()
-    elif args.weights.lower() == "imagenet":
-        # Start from ImageNet trained weights
-        weights_path = model.get_imagenet_weights()
-    else:
-        weights_path = args.weights
-
-    # Load weights
-    print("Loading weights ", weights_path)
-    if args.weights.lower() == "coco":
-        # Exclude the last layers because they require a matching
-        # number of classes
-        model.load_weights(weights_path, by_name=True, exclude=[
-            "mrcnn_class_logits", "mrcnn_bbox_fc",
-            "mrcnn_bbox", "mrcnn_mask"])
-    # elif args.weights:
-    #     model.load_weights(weights_path, by_name=True)
-
-    # Train or evaluate
-    if args.command == "train":
-        train(model, config)
-    # elif args.command == "splash":
-    #     detect_and_color_splash(model, image_path=args.image,
-    #                             video_path=args.video)
-    else:
-        print("'{}' is not recognized. "
-              "Use 'train' or 'splash'".format(args.command))
-
-
+    #
+    # # Create model
+    # if args.command == "train":
+    #     model = MaskRCNN(mode="training", config=config,
+    #                      model_dir=args.logs)
+    # else:
+    #     model = MaskRCNN(mode="inference", config=config,
+    #                      model_dir=args.logs)
+    #
+    # # Select weights file to load
+    # if args.weights.lower() == "coco":
+    #     weights_path = COCO_WEIGHTS_PATH
+    #     # Download weights file
+    #     if not os.path.exists(weights_path):
+    #         utils.download_trained_weights(weights_path)
+    # elif args.weights.lower() == "last":
+    #     # Find last trained weights
+    #     weights_path = model.find_last()
+    # elif args.weights.lower() == "imagenet":
+    #     # Start from ImageNet trained weights
+    #     weights_path = model.get_imagenet_weights()
+    # else:
+    #     weights_path = args.weights
+    #
+    # # Load weights
+    # print("Loading weights ", weights_path)
+    # if args.weights.lower() == "coco":
+    #     # Exclude the last layers because they require a matching
+    #     # number of classes
+    #     model.load_weights(weights_path, by_name=True, exclude=[
+    #         "mrcnn_class_logits", "mrcnn_bbox_fc",
+    #         "mrcnn_bbox", "mrcnn_mask"])
+    # # elif args.weights:
+    # #     model.load_weights(weights_path, by_name=True)
+    #
+    # # Train or evaluate
+    # if args.command == "train":
+    #     train(model, config)
+    # # elif args.command == "splash":
+    # #     detect_and_color_splash(model, image_path=args.image,
+    # #                             video_path=args.video)
+    # else:
+    #     print("'{}' is not recognized. "
+    #           "Use 'train' or 'splash'".format(args.command))
