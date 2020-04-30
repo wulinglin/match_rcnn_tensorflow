@@ -99,9 +99,9 @@ class DeepFashion2Dataset(utils.Dataset):
                 annotations=coco.loadAnns(coco.getAnnIds(
                     imgIds=[i], catIds=class_ids, iscrowd=None)))
         # todo 为什么这里可以，而下面train_dataset不能.dataset看数据，那么要怎么看数据
-        print(coco.dataset.keys())
-        print(len(coco.dataset['images']), coco.dataset['images'][:2])
-        print(len(coco.dataset['annotations']), coco.dataset['annotations'][:1])
+        # print(coco.dataset.keys())
+        # print(len(coco.dataset['images']), coco.dataset['images'][:2])
+        # print(len(coco.dataset['annotations']), coco.dataset['annotations'][:1])
         # print(len(coco.dataset['categories']), coco.dataset['categories'][:1])
 
         if return_coco:
@@ -267,7 +267,6 @@ def main_match(mode, config, model_dir=None):
     images, labels = [], label_list
     for p1, p2 in img_path_list:
         image_id_1 = int(p1.split('/')[-2].lstrip('0'))
-        print(image_id_1)
         image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
                                                                          augment=False,
                                                                          augmentation=None)
@@ -279,7 +278,6 @@ def main_match(mode, config, model_dir=None):
 
     match_model = MatchRCNN(mode, config, model_dir)
     match_model.build_match_v2(images, labels)
-
 
 
 def train(model, config):

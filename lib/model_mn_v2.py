@@ -11,31 +11,23 @@ from keras_applications.imagenet_utils import decode_predictions
 from lib.model_new import MaskRCNN
 
 
-# todo mold_inputs对么？
-
 class MatchRCNN:
     def __init__(self, mode, config, model_dir=None):
-        # if model_dir:
-        #     self.model_mask = load_model(model_dir)
-        # else:
-        #     self.model_mask = MaskRCNN(mode, config, model_dir)
-        # model = MaskRCNN(mode, config, model_dir)
-        # print(model, model_dir)
-        # self.model_mask = model.load_weights(model_dir)
-        # print(self.model_mask)
-        self.model_mask = keras.models.load_weights(model_dir)
-        self.output = Model(inputs=self.model_mask.mold_inputs, output=self.model_mask.get_layer('output_rois').output)
+        self.model_mask = MaskRCNN(mode, config, model_dir).keras_model
+        self.model_mask.load_weights(model_dir)
+        self.output = Model(inputs=self.model_mask.inputs, output=self.model_mask.get_layer('output_rois').output)
 
     def match_dataset(self, images, labels):
-        # images_concat = [img1+img2 for img1,img2 in images]
         images_concat = []
-        for img1, img2 in images:
-            img = tf.concat(0, [img1, img2])
-            images_concat.append(tf.convert_to_tensor(img))
-        mask_images = self.output.predict(images)
-        dataset = tf.data.Dataset.from_tensor_slices((mask_images, labels))
-        dataset = dataset.shuffle(buffer_size=1000)
-        return dataset
+        for img1,img2 in images:
+            images_concat.extend([img1 , img2])
+        for img in images_concat:
+            mask_images = self.output.predict(img)
+            print(mask_images)
+        print('hhhhhhh')
+        # dataset = tf.data.Dataset.from_tensor_slices((mask_images, labels))
+        # dataset = dataset.shuffle(buffer_size=1000)
+        # return dataset
 
     def build_match_v2(self, images, labels):
         dataset = self.match_dataset(images, labels)

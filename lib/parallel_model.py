@@ -14,6 +14,8 @@ https://github.com/fchollet/keras/blob/master/keras/utils/training_utils.py
 """
 
 import tensorflow as tf
+
+
 import keras.backend as K
 import keras.layers as KL
 import keras.models as KM

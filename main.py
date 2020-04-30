@@ -8,6 +8,7 @@ Created on Sun Jul 21 21:15:50 2019
 import sys
 
 from lib.model_mn_v2 import MatchRCNN
+from lib.model_new import MaskRCNN
 
 sys.dont_write_bytecode = True
 
@@ -301,6 +302,10 @@ if __name__ == "__main__":
     ROOT_DIR = os.path.abspath("./")
     DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
     COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0001.h5")
+
+    # model_dir = './mask_rcnn_deepfashion2_0001.h5'
+
     import argparse
 
     # Parse command line arguments
@@ -349,50 +354,51 @@ if __name__ == "__main__":
 
         config = InferenceConfig()
     config.display()
-    model_dir = './mask_rcnn_deepfashion2_0001.h5'
-    main_match(mode="training",config=config, model_dir=model_dir)
+    # model_dir = './mask_rcnn_deepfashion2_0001.h5'
+    # main_match(mode="training",config=config, model_dir=model_dir)
 
-    #
-    # # Create model
-    # if args.command == "train":
-    #     model = MaskRCNN(mode="training", config=config,
-    #                      model_dir=args.logs)
-    # else:
-    #     model = MaskRCNN(mode="inference", config=config,
-    #                      model_dir=args.logs)
-    #
-    # # Select weights file to load
-    # if args.weights.lower() == "coco":
-    #     weights_path = COCO_WEIGHTS_PATH
-    #     # Download weights file
-    #     if not os.path.exists(weights_path):
-    #         utils.download_trained_weights(weights_path)
-    # elif args.weights.lower() == "last":
-    #     # Find last trained weights
-    #     weights_path = model.find_last()
-    # elif args.weights.lower() == "imagenet":
-    #     # Start from ImageNet trained weights
-    #     weights_path = model.get_imagenet_weights()
-    # else:
-    #     weights_path = args.weights
-    #
-    # # Load weights
-    # print("Loading weights ", weights_path)
-    # if args.weights.lower() == "coco":
-    #     # Exclude the last layers because they require a matching
-    #     # number of classes
-    #     model.load_weights(weights_path, by_name=True, exclude=[
-    #         "mrcnn_class_logits", "mrcnn_bbox_fc",
-    #         "mrcnn_bbox", "mrcnn_mask"])
-    # # elif args.weights:
-    # #     model.load_weights(weights_path, by_name=True)
-    #
-    # # Train or evaluate
-    # if args.command == "train":
-    #     train(model, config)
-    # # elif args.command == "splash":
-    # #     detect_and_color_splash(model, image_path=args.image,
-    # #                             video_path=args.video)
-    # else:
-    #     print("'{}' is not recognized. "
-    #           "Use 'train' or 'splash'".format(args.command))
+
+    # Create model
+    if args.command == "train":
+        model = MaskRCNN(mode="training", config=config,
+                         model_dir=args.logs)
+    else:
+        model = MaskRCNN(mode="inference", config=config,
+                         model_dir=args.logs)
+
+    # Select weights file to load
+    if args.weights.lower() == "coco":
+        weights_path = COCO_WEIGHTS_PATH
+        # Download weights file
+        if not os.path.exists(weights_path):
+            utils.download_trained_weights(weights_path)
+    elif args.weights.lower() == "last":
+        # Find last trained weights
+        weights_path = model.find_last()
+    elif args.weights.lower() == "imagenet":
+        # Start from ImageNet trained weights
+        weights_path = model.get_imagenet_weights()
+    else:
+        weights_path = args.weights
+
+    # Load weights
+    print("Loading weights ", weights_path)
+    if args.weights.lower() == "coco":
+        # Exclude the last layers because they require a matching
+        # number of classes
+        model.load_weights(weights_path, by_name=True, exclude=[
+            "mrcnn_class_logits", "mrcnn_bbox_fc",
+            "mrcnn_bbox", "mrcnn_mask"])
+    # elif args.weights:
+    #     model.load_weights(weights_path, by_name=True)
+
+    # Train or evaluate
+    if args.command == "train":
+        train(model, config)
+        # model.save('model.h5')
+    # elif args.command == "splash":
+    #     detect_and_color_splash(model, image_path=args.image,
+    #                             video_path=args.video)
+    else:
+        print("'{}' is not recognized. "
+              "Use 'train' or 'splash'".format(args.command))
