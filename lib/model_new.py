@@ -1975,13 +1975,13 @@ class MaskRCNN():
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
-                              rpn_rois, rpn_class, rpn_bbox],
+                              rpn_rois, rpn_class, rpn_bbox, detection_boxes, mrcnn_class_logits],
                              name='mask_rcnn')
 
         # Add multi-GPU support.
-        if config.GPU_COUNT > 1:
-            from mrcnn.parallel_model import ParallelModel
-            model = ParallelModel(model, config.GPU_COUNT)
+        # if config.GPU_COUNT > 1:
+        #     from mrcnn.parallel_model import ParallelModel
+        #     model = ParallelModel(model, config.GPU_COUNT)
 
         return model
 
@@ -2297,6 +2297,22 @@ class MaskRCNN():
         )
         self.epoch = max(self.epoch, epochs)
 
+    def test(self, image_path, config):
+        import cv2
+        import numpy as np
+        image = cv2.imread(image_path)
+        # image, window, scale, padding, crop = utils.resize_image(
+        #     image,
+        #     min_dim=config.IMAGE_MIN_DIM,
+        #     min_scale=config.IMAGE_MIN_SCALE,
+        #     max_dim=config.IMAGE_MAX_DIM,
+        #     mode=config.IMAGE_RESIZE_MODE)
+        # image = np.reshape(image, (-1, image.shape[0], image.shape[1], image.shape[2]))
+        # Data generators
+        result = self.detect([image])
+        cv2.imwrite('result.png', result)
+
+
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
         as an input to the neural network.
@@ -2433,7 +2449,9 @@ class MaskRCNN():
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, _, _, _ = \
+
+        #[detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, detections_box]
+        detections, classes, bbox, rpn_bbox, _, _, boxes, logits= \
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
         # Process detections
         results = []

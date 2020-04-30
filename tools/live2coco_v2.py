@@ -48,7 +48,7 @@ for k, v in class_dict.items():
         'skeleton': []
     })
 
-num_images = 4525
+num_images = 40000
 path_head = '../../train_part_1/'
 
 image_path_head = path_head + 'image/'
