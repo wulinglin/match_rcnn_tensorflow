@@ -35,22 +35,22 @@ class DeepFashion2Config(Config):
     GPU_COUNT = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 13  # COCO has 80 classes
+    NUM_CLASSES = 1 + 23  # COCO has 80 classes
 
     USE_MINI_MASK = True
 
-    train_img_dir = "../match_rcnn/dataset/train/image"
-    train_json_path = "../match_rcnn/tools/valid.json"
-    valid_img_dir = "../match_rcnn/dataset/train/image"
-    valid_json_path = "../match_rcnn/tools/valid.json"
+    # train_img_dir = "../match_rcnn/dataset/train/image"
+    # train_json_path = "../match_rcnn/tools/valid.json"
+    # valid_img_dir = "../match_rcnn/dataset/train/image"
+    # valid_json_path = "../match_rcnn/tools/valid.json"
 
     # train_img_dir = "../Live_demo_20200117/video_cut"
     # train_json_path = "../Live_demo_20200117/train.json"
-    # valid_img_dir = "../Live_demo_20200117/video_cut"
-    # valid_json_path = "../Live_demo_20200117/train.json"
+    valid_img_dir = "../Live_demo_20200117/video_cut"
+    valid_json_path = "../Live_demo_20200117/train.json"
     #
-    # train_img_dir = "../train_part_1/video_cut"
-    # train_json_path = "../train_part_1/train.json"
+    train_img_dir = "../train_part_1/video_cut"
+    train_json_path = "../train_part_1/train.json"
     # valid_img_dir = "dataset/train/image"
     # valid_json_path = "tools/valid.json"
 
@@ -353,15 +353,15 @@ if __name__ == "__main__":
         model.load_weights(weights_path, by_name=True, exclude=[
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
-    # elif args.weights:
-    #     model.load_weights(weights_path, by_name=True)
+    elif args.weights:
+        model.load_weights(weights_path, by_name=True)
 
     # Train or evaluate
     if args.command == "train":
         train(model, config)
     elif args.command == "test":
         # test(model, '../Live_demo_20200117/image/000004/0.jpg', config)
-        test(model, '../Live_demo_20200117/image/000001/0.jpg', config)
+        test(model, '../Live_demo_20200117/image/000008/0.jpg', config)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'splash'".format(args.command))
