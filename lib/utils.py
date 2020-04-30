@@ -14,6 +14,8 @@ import math
 import random
 import numpy as np
 import tensorflow as tf
+
+
 import scipy
 import skimage.color
 import skimage.io

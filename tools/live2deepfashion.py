@@ -2,15 +2,9 @@ import collections
 import json
 import os
 
-path_head = '../Live_demo_20200117/'
+from constant import video_path_head, video_annos_path_head, annos_save_path, path_head, image_path_head, \
+    image_annos_path_head
 
-image_path_head = path_head + 'image/'
-image_annos_path_head = path_head + 'image_annotation/'
-
-video_path_head = path_head + 'video_cut/'
-video_annos_path_head = path_head + 'video_annotation/'
-
-annos_save_path = path_head + 'annos/'
 if not os.path.exists(annos_save_path):
     os.makedirs(annos_save_path)
 
@@ -113,6 +107,8 @@ def video_data_prepare():
                                  "occlusion": 1,  # 此处无用1表示，一个数字，其中1表示轻微遮挡（包括无遮挡），2表示中度遮挡，3表示重度遮挡。
                                  "category_name": cat
                              }}
+                # print(temp)
+                # print(temp_dict)
                 with open(annos_save_path + '' + '{}.json'.format(item_id), 'w+') as f:
                     json.dump(temp_dict, f)
     print('总条数', m, '有效条数', n)

@@ -14,14 +14,15 @@ import logging
 from collections import OrderedDict
 import multiprocessing
 import numpy as np
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
+
 import keras
 import keras.backend as K
 import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
 
-tf.disable_v2_behavior()
+
 
 from lib import utils
 

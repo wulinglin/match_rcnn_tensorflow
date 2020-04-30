@@ -86,9 +86,11 @@ def json_data_view():
         print(i)
 
 
-if __name__ == "__main__":
-    data_dir = "/data/wl_data/live_data/train_dataset_part1/video"  # 视频数据主目录
-    save_dir = "../../train_part_1/video_cut"  # 帧文件保存目录
-    video_split_and_save(data_dir, save_dir)
-
-    # json_data_view()
+# if __name__ == "__main__":
+#     from constant import video_path_head, video_path_raw
+#
+#     data_dir = video_path_raw  # 视频数据主目录
+#     save_dir = video_path_head  # 帧文件保存目录
+#     video_split_and_save(data_dir, save_dir)
+#
+#     # json_data_view()

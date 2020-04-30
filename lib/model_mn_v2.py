@@ -1,6 +1,9 @@
 import keras
 import numpy as np
 import tensorflow as tf
+
+
+
 from keras.layers import Flatten, Dense, Conv2D
 from keras.models import load_model, Model
 from keras_applications.imagenet_utils import decode_predictions
@@ -8,19 +11,20 @@ from keras_applications.imagenet_utils import decode_predictions
 from lib.model_new import MaskRCNN
 
 
+# todo mold_inputs对么？
+
 class MatchRCNN:
     def __init__(self, mode, config, model_dir=None):
-        # todo mold_inputs对么？
-        if model_dir:
-            self.model_mask = load_model(model_dir)
-        else:
-            self.model_mask = MaskRCNN(mode, config, model_dir)
+        # if model_dir:
+        #     self.model_mask = load_model(model_dir)
+        # else:
+        #     self.model_mask = MaskRCNN(mode, config, model_dir)
+        # model = MaskRCNN(mode, config, model_dir)
+        # print(model, model_dir)
+        # self.model_mask = model.load_weights(model_dir)
+        # print(self.model_mask)
+        self.model_mask = keras.models.load_weights(model_dir)
         self.output = Model(inputs=self.model_mask.mold_inputs, output=self.model_mask.get_layer('output_rois').output)
-        # self.output.predict()
-        # self.conv1 = Conv2D(256, kernel_size=(3, 3), activation='relu', padding='same')
-        # self.conv2 = Conv2D(256, (3, 3), activation='relu', padding='same')
-        # self.conv3 = Conv2D(32 * 2, (3, 3), activation='relu', padding='same')
-        # self.conv4 = Conv2D(32 * 2, (3, 3), activation='relu', padding='same')
 
     def match_dataset(self, images, labels):
         # images_concat = [img1+img2 for img1,img2 in images]
@@ -35,7 +39,6 @@ class MatchRCNN:
 
     def build_match_v2(self, images, labels):
         dataset = self.match_dataset(images, labels)
-
         inputs = keras.Input(shape=[150, 150, 3])
         conv1 = Conv2D(256, kernel_size=(3, 3), activation='relu', padding='same')(inputs)
         conv2 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv1)
@@ -44,16 +47,13 @@ class MatchRCNN:
         pooling5 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv4)
         flat = Flatten()(pooling5)
         fc1 = Dense(1024, activation='relu')(flat)
-        prediction = keras.layers.Dense(1, activation=keras.activations.softmax, use_bias=True)(fc1)
-
-        # 基于Model方法构建模型
+        prediction = keras.layers.Dense(1, activation=keras.activations.softmax, use_bias=True)(fc1)# 基于Model方法构建模型
         model = Model(inputs=dataset, outputs=prediction)
         # 编译模型
         model.compile(optimizer=tf.train.AdamOptimizer(0.01),
                       loss=keras.losses.categorical_crossentropy,
                       metrics=['accuracy'])
-        # # 训练配置，仅供参考
-        model.fit(dataset, epochs=5, steps_per_epoch=4442)
+        model.fit(dataset, epochs=5, steps_per_epoch=4442)# 训练配置，仅供参考
         model.save('mn.h5')
 
     def build_match(self, x1, x2):
