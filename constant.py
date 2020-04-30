@@ -8,3 +8,8 @@ video_path_head = path_head + 'video_cut/'
 video_annos_path_head = path_head + 'video_annotation/'
 
 annos_save_path = path_head + 'annos/'
+
+train_img_dir = path_head + "video_cut"
+train_json_path = path_head + "train.json"
+valid_img_dir = path_head + "video_cut"
+valid_json_path = path_head + "train.json"

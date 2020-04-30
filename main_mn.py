@@ -7,8 +7,8 @@ Created on Sun Jul 21 21:15:50 2019
 
 import sys
 
+import constant
 from lib.model_mn_v2 import MatchRCNN
-from lib.model_new import MaskRCNN
 
 sys.dont_write_bytecode = True
 
@@ -41,20 +41,10 @@ class DeepFashion2Config(Config):
 
     USE_MINI_MASK = True
 
-    # train_img_dir = "dataset/train/image"
-    # train_json_path = "tools/valid.json"
-    # valid_img_dir = "dataset/train/image"
-    # valid_json_path = "tools/valid.json"
-
-    train_img_dir = "../Live_demo_20200117/video_cut"
-    train_json_path = "../Live_demo_20200117/train.json"
-    valid_img_dir = "../Live_demo_20200117/video_cut"
-    valid_json_path = "../Live_demo_20200117/train.json"
-
-    # train_img_dir = "../train_part_1/video_cut"
-    # train_json_path = "tools/train.json"
-    # valid_img_dir = "dataset/train/image"
-    # valid_json_path = "tools/valid.json"
+    train_img_dir = constant.train_img_dir
+    train_json_path = constant.train_json_path
+    valid_img_dir = constant.valid_img_dir
+    valid_json_path = constant.valid_json_path
 
 
 ############################################################
@@ -276,7 +266,7 @@ def main_match(mode, config, model_dir=None):
                                                                          augmentation=None)
         images.append((image_1, image_2))
 
-    match_model = MatchRCNN(images,mode, config, model_dir)
+    match_model = MatchRCNN(images, mode, config, model_dir)
     match_model.build_match_v2(images, labels)
 
 
@@ -354,48 +344,4 @@ if __name__ == "__main__":
         config = InferenceConfig()
     # config.display()
     model_dir = './mask_rcnn_deepfashion2_0001.h5'
-    main_match(mode="training",config=config, model_dir=model_dir)
-
-    # # Create model
-    # if args.command == "train":
-    #     model = MaskRCNN(mode="training", config=config,
-    #                      model_dir=args.logs)
-    # else:
-    #     model = MaskRCNN(mode="inference", config=config,
-    #                      model_dir=args.logs)
-    #
-    # # Select weights file to load
-    # if args.weights.lower() == "coco":
-    #     weights_path = COCO_WEIGHTS_PATH
-    #     # Download weights file
-    #     if not os.path.exists(weights_path):
-    #         utils.download_trained_weights(weights_path)
-    # elif args.weights.lower() == "last":
-    #     # Find last trained weights
-    #     weights_path = model.find_last()
-    # elif args.weights.lower() == "imagenet":
-    #     # Start from ImageNet trained weights
-    #     weights_path = model.get_imagenet_weights()
-    # else:
-    #     weights_path = args.weights
-    #
-    # # Load weights
-    # print("Loading weights ", weights_path)
-    # if args.weights.lower() == "coco":
-    #     # Exclude the last layers because they require a matching
-    #     # number of classes
-    #     model.load_weights(weights_path, by_name=True, exclude=[
-    #         "mrcnn_class_logits", "mrcnn_bbox_fc",
-    #         "mrcnn_bbox", "mrcnn_mask"])
-    # # elif args.weights:
-    # #     model.load_weights(weights_path, by_name=True)
-    #
-    # # Train or evaluate
-    # if args.command == "train":
-    #     train(model, config)
-    # # elif args.command == "splash":
-    # #     detect_and_color_splash(model, image_path=args.image,
-    # #                             video_path=args.video)
-    # else:
-    #     print("'{}' is not recognized. "
-    #           "Use 'train' or 'splash'".format(args.command))
+    main_match(mode="training", config=config, model_dir=model_dir)
