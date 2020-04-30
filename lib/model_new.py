@@ -2301,16 +2301,10 @@ class MaskRCNN():
         import cv2
         import numpy as np
         image = cv2.imread(image_path)
-        # image, window, scale, padding, crop = utils.resize_image(
-        #     image,
-        #     min_dim=config.IMAGE_MIN_DIM,
-        #     min_scale=config.IMAGE_MIN_SCALE,
-        #     max_dim=config.IMAGE_MAX_DIM,
-        #     mode=config.IMAGE_RESIZE_MODE)
-        # image = np.reshape(image, (-1, image.shape[0], image.shape[1], image.shape[2]))
-        # Data generators
+
         result = self.detect([image])
-        cv2.imwrite('result.png', result)
+        top_one_roi = result[0]['rois'][0]
+        top_one_class_ids = result[0]['class_ids'][0]
 
 
     def mold_inputs(self, images):
