@@ -276,7 +276,7 @@ def main_match(mode, config, model_dir=None):
                                                                          augmentation=None)
         images.append((image_1, image_2))
 
-    match_model = MatchRCNN(mode, config, model_dir)
+    match_model = MatchRCNN(images,mode, config, model_dir)
     match_model.build_match_v2(images, labels)
 
 

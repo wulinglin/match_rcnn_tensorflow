@@ -1,11 +1,9 @@
 # 执行步骤
-1.切割video
- tools/video_split.py
-2.转换成deepfashion数据格式
- tools/live2deepfashion.py
-3.转换成coco数据格式
- tools/live2coco_v2.py
-4.训练目标检测模型
- train.py
-5.训练检索模型
+1.在constant.py文件中更改数据集的地址
+
+2.执行main_data_process.py预处理数据
+  先切割视频、 转换成deepfashion数据集、转换成coco数据集
+
+3.match-rcnn
+  执行main_mn.py
    

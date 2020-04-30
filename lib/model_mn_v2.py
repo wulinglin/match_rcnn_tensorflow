@@ -1,9 +1,6 @@
 import keras
 import numpy as np
 import tensorflow as tf
-
-
-
 from keras.layers import Flatten, Dense, Conv2D
 from keras.models import load_model, Model
 from keras_applications.imagenet_utils import decode_predictions
@@ -12,18 +9,25 @@ from lib.model_new import MaskRCNN
 
 
 class MatchRCNN:
-    def __init__(self, mode, config, model_dir=None):
-        self.model_mask = MaskRCNN(mode, config, model_dir).keras_model
-        self.model_mask.load_weights(model_dir)
-        self.output = Model(inputs=self.model_mask.inputs, output=self.model_mask.get_layer('output_rois').output)
+    def __init__(self, images, mode, config, model_dir=None, ):
+        self.model_mask = MaskRCNN(mode, config, model_dir)
+        self.model_mask_keras = self.model_mask.keras_model
+        self.model_mask_keras.load_weights(model_dir)
+        self.output = Model(inputs=self.model_mask_keras.inputs, output=self.model_mask_keras.get_layer('output_rois').output)
 
     def match_dataset(self, images, labels):
         images_concat = []
         for img1,img2 in images:
-            images_concat.extend([img1 , img2])
-        for img in images_concat:
-            mask_images = self.output.predict(img)
-            print(mask_images)
+            print((self.model_mask.mold_inputs([img1])+self.model_mask.mold_inputs([img2])).shape)
+            self.output.predict(self.model_mask.mold_inputs([img1])+self.model_mask.mold_inputs([img2]))
+            # print(img1.shape)
+            # images_concat.extend([img1 , img2])
+        # # print(images_concat.shape)
+        # # mask_images = self.output.predict(images_concat)
+        # for img in images_concat:
+        #
+        #     mask_images = self.output.predict([img])
+        #     print(mask_images)
         print('hhhhhhh')
         # dataset = tf.data.Dataset.from_tensor_slices((mask_images, labels))
         # dataset = dataset.shuffle(buffer_size=1000)
