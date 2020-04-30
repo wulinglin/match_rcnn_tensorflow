@@ -2302,9 +2302,16 @@ class MaskRCNN():
         import numpy as np
         image = cv2.imread(image_path)
 
-        result = self.detect([image])
-        top_one_roi = result[0]['rois'][0]
-        top_one_class_ids = result[0]['class_ids'][0]
+        result, images = self.detect([image])
+        image = images[0]
+        try:
+            top_one_roi = result[0]['rois'][0]
+            top_one_class_ids = result[0]['class_ids'][0]
+            image = cv2.rectangle(image, (top_one_roi[1], top_one_roi[0]), (top_one_roi[3], top_one_roi[2]), (0, 255, 0), 5)
+        except Exception as e:
+            print(e)
+
+        return image
 
 
     def mold_inputs(self, images):
@@ -2459,7 +2466,7 @@ class MaskRCNN():
                 "class_ids": final_class_ids,
                 "scores": final_scores,
             })
-        return results
+        return results, molded_images
 
     def detect_molded(self, molded_images, image_metas, verbose=0):
         """Runs the detection pipeline, but expect inputs that are
