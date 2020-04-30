@@ -1975,13 +1975,13 @@ class MaskRCNN():
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
-                              rpn_rois, rpn_class, rpn_bbox],
+                              rpn_rois, rpn_class, rpn_bbox, detection_boxes, mrcnn_class_logits],
                              name='mask_rcnn')
 
         # Add multi-GPU support.
-        if config.GPU_COUNT > 1:
-            from mrcnn.parallel_model import ParallelModel
-            model = ParallelModel(model, config.GPU_COUNT)
+        # if config.GPU_COUNT > 1:
+        #     from mrcnn.parallel_model import ParallelModel
+        #     model = ParallelModel(model, config.GPU_COUNT)
 
         return model
 
@@ -2297,6 +2297,16 @@ class MaskRCNN():
         )
         self.epoch = max(self.epoch, epochs)
 
+    def test(self, image_path, config):
+        import cv2
+        import numpy as np
+        image = cv2.imread(image_path)
+
+        result = self.detect([image])
+        top_one_roi = result[0]['rois'][0]
+        top_one_class_ids = result[0]['class_ids'][0]
+
+
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
         as an input to the neural network.
@@ -2433,7 +2443,9 @@ class MaskRCNN():
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, _, _, _ = \
+
+        #[detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, detections_box]
+        detections, classes, bbox, rpn_bbox, _, _, boxes, logits= \
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
         # Process detections
         results = []

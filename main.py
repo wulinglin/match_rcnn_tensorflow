@@ -35,22 +35,22 @@ class DeepFashion2Config(Config):
     GPU_COUNT = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 23  # COCO has 80 classes
+    NUM_CLASSES = 1 + 13  # COCO has 80 classes
 
     USE_MINI_MASK = True
 
-    # train_img_dir = "dataset/train/image"
-    # train_json_path = "tools/valid.json"
-    # valid_img_dir = "dataset/train/image"
-    # valid_json_path = "tools/valid.json"
+    train_img_dir = "../match_rcnn/dataset/train/image"
+    train_json_path = "../match_rcnn/tools/valid.json"
+    valid_img_dir = "../match_rcnn/dataset/train/image"
+    valid_json_path = "../match_rcnn/tools/valid.json"
 
-    train_img_dir = "../Live_demo_20200117/video_cut"
-    train_json_path = "../Live_demo_20200117/train.json"
-    valid_img_dir = "../Live_demo_20200117/video_cut"
-    valid_json_path = "../Live_demo_20200117/train.json"
-
+    # train_img_dir = "../Live_demo_20200117/video_cut"
+    # train_json_path = "../Live_demo_20200117/train.json"
+    # valid_img_dir = "../Live_demo_20200117/video_cut"
+    # valid_json_path = "../Live_demo_20200117/train.json"
+    #
     # train_img_dir = "../train_part_1/video_cut"
-    # train_json_path = "tools/train.json"
+    # train_json_path = "../train_part_1/train.json"
     # valid_img_dir = "dataset/train/image"
     # valid_json_path = "tools/valid.json"
 
@@ -260,8 +260,13 @@ def train(model, config):
 
     model.train(dataset_train, dataset_valid,
                 learning_rate=config.LEARNING_RATE,
-                epochs=1,
+                epochs=config.EPOCHS,
                 layers='heads')
+
+
+def test(model, image_path, config):
+    model.test(image_path, config)
+
 
 
 if __name__ == "__main__":
@@ -354,9 +359,9 @@ if __name__ == "__main__":
     # Train or evaluate
     if args.command == "train":
         train(model, config)
-    # elif args.command == "splash":
-    #     detect_and_color_splash(model, image_path=args.image,
-    #                             video_path=args.video)
+    elif args.command == "test":
+        # test(model, '../Live_demo_20200117/image/000004/0.jpg', config)
+        test(model, '../Live_demo_20200117/image/000001/0.jpg', config)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'splash'".format(args.command))
