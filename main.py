@@ -7,6 +7,7 @@ Created on Sun Jul 21 21:15:50 2019
 
 import sys
 
+import constant
 from lib.model_mn_v2 import MatchRCNN
 from lib.model_new import MaskRCNN
 
@@ -41,20 +42,10 @@ class DeepFashion2Config(Config):
 
     USE_MINI_MASK = True
 
-    # train_img_dir = "../match_rcnn/dataset/train/image"
-    # train_json_path = "../match_rcnn/tools/valid.json"
-    # valid_img_dir = "../match_rcnn/dataset/train/image"
-    # valid_json_path = "../match_rcnn/tools/valid.json"
-
-    # train_img_dir = "../Live_demo_20200117/video_cut"
-    # train_json_path = "../Live_demo_20200117/train.json"
-    valid_img_dir = "../Live_demo_20200117/video_cut"
-    valid_json_path = "../Live_demo_20200117/train.json"
-    #
-    train_img_dir = "../train_part_1/video_cut"
-    train_json_path = "../train_part_1/train.json"
-    # valid_img_dir = "dataset/train/image"
-    # valid_json_path = "tools/valid.json"
+    train_img_dir = constant.train_json_path
+    valid_json_path = constant.valid_json_path
+    train_img_dir = constant.train_img_dir
+    train_json_path = constant.train_json_path
 
 
 ############################################################
@@ -305,7 +296,7 @@ if __name__ == "__main__":
     ROOT_DIR = os.path.abspath("./")
     DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
     COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0001.h5")
+    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0003.h5")
 
     # model_dir = './mask_rcnn_deepfashion2_0001.h5'
 

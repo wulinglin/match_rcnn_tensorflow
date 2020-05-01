@@ -6,7 +6,7 @@ from keras.models import load_model, Model
 from keras_applications.imagenet_utils import decode_predictions
 
 from lib.model_new import MaskRCNN
-import lib.config as config
+from lib.config import Config
 
 
 def log(text, array=None):
@@ -27,25 +27,35 @@ def log(text, array=None):
 class MatchRCNN:
     def __init__(self, images, mode, config, model_dir=None):
         self.config = config
+        ###self.config = Config()
         self.model_mask = MaskRCNN("inference", config, model_dir)
+        self.model_mask.load_weights(model_dir, by_name=True)
         self.model_mask_keras = self.model_mask.keras_model
-        self.model_mask_keras.load_weights(model_dir)
-        self.output = Model(inputs=self.model_mask_keras.inputs,
-                            output=self.model_mask_keras.get_layer('output_rois').output)
+        self.output = Model(inputs=self.model_mask_keras.inputs, output= \
+                        [ self.model_mask_keras.get_layer('roi_align_classifier').output, self.model_mask_keras.get_layer('mrcnn_class_logits').output] )
 
     def match_dataset(self, images, labels):
+        print("img:", len(images) )
+        print("img_label:", len(labels) )
+
         images_concat = []
-        img1_data = []
-        img2_data = []
-        for img1, img2 in images:
+        img_data = []
+        for img1,img2 in images:
+            images_concat.extend( [img1,img2] )
+        #img1_data = []
+        #img2_data = []
+        for img1 in images_concat:
             # Mold inputs to format expected by the neural network
             ###molded_images, image_metas, windows = self.model_mask.mold_inputs([img1])
-            images_tmp = [img1, img2]
-            assert len(images_tmp) == config.BATCH_SIZE, "len(images) must be equal to BATCH_SIZE"
-
+            #print( self.config.BATCH_SIZE )            
+            ##print( self.config.BATCH_SIZE )
+            images_tmp = [ img1 ] 
+            ###images_tmp = [img1, img2 ]
+            ##self.config.BATCH_SIZE = 2
+            ###assert len( images_tmp) == self.config.BATCH_SIZE, "len(images) must be equal to BATCH_SIZE"
             log("Processing {} images".format(len(images_tmp)))
-            for image in images_tmp:
-                log("image", image)
+            ##for image in images_tmp:
+            ##    log("image", image)
 
             # Mold inputs to format expected by the neural network
             molded_images, image_metas, windows = self.model_mask.mold_inputs(images_tmp)
@@ -61,22 +71,29 @@ class MatchRCNN:
             anchors = self.model_mask.get_anchors(image_shape)
             # Duplicate across the batch dimension because Keras requires it
             # TODO: can this be optimized to avoid duplicating the anchors?
-            anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
-
-            print("molded_images", molded_images)
-            print("image_metas", image_metas)
-            print("anchors", anchors)
+            anchors = np.broadcast_to(anchors, (self.config.BATCH_SIZE,) + anchors.shape)
+            ###print("molded_images", molded_images)
+            ##print("image_metas", image_metas)
+            ###print("anchors", anchors)
             # Run object detection
             output_rois = self.output.predict([molded_images, image_metas, anchors], verbose=0)
 
-            print("len ", len(output_rois))
+            print("len ", len(output_rois) ) 
             print("output_rois[0].shape:", output_rois[0].shape)
+            print("output_rois[1].shape:", output_rois[1].shape)
+            print("output_rois[1].shape:", np.max(output_rois[1], axis = 2).shape)
+            output_rois_score = np.max(output_rois[1], axis = 2 )
+            print( output_rois_score.shape)
 
-            img1_data.append(output_rois[0])
-            img2_data.append(output_rois[1])
+            output_rois_score_maxindex = np.argmax(output_rois_score, axis = 1)
+            print( output_rois_score_maxindex.shape)
 
-            # output_rois
-            # images_concat.append( output_rois )
+            #np.armax(output_rois[1] , axis = 2)
+            img_data.append( output_rois[0][0][output_rois_score_maxindex[0]] )
+            ##img2_data.append( output_rois[1] )
+            
+            #output_rois
+            #images_concat.append( output_rois )
 
             ##break
             # print(img1.shape)
@@ -87,29 +104,39 @@ class MatchRCNN:
         #
         #     mask_images = self.output.predict([img])
         #     print(mask_images)
-        print('hhhhhhh')
+        img1_data = []
+        img2_data = []
+        for i in range( int(len(img_data) / 2) ) :
+            img1_data.append( img_data[2*i])
+            img2_data.append( img_data[2*i+1])
 
+        print('hhhhhhh')
+        print( len(img1_data) )
+        print( len(img2_data) )
+        
         ##dataset = tf.data.Dataset.from_tensor_slices((images_concat, labels))
         ###dataset = dataset.shuffle(buffer_size=1000)
-        return img1_data, img2_data, labels  ###dataset
+        return img1_data, img2_data, labels ###dataset
 
-    def match_base(self, image_tensor):
-        conv1 = Conv2D(128, kernel_size=(3, 3), activation='relu', padding='same')(image_tensor)
-        conv2 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv1)
-        conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv2)
+
+
+    def match_base(self, image_tensor):        
+        conv1 = Conv2D(256, kernel_size=(2, 2), activation='relu', padding='same')(image_tensor)
+        conv2 = Conv2D(256, (2, 2), activation='relu', padding='same')(conv1)
+        conv3 = Conv2D(256, (2, 2), activation='relu', padding='same')(conv2)
         pooling1 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv3)
 
-        conv4 = Conv2D(256, (3, 3), activation='relu', padding='same')(pooling1)
-        conv5 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv4)
-        conv6 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv5)
-        pooling2 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv6)
+        conv4 = Conv2D(512, (2, 2), activation='relu', padding='same')(pooling1)
+        conv5 = Conv2D(512, (2, 2), activation='relu', padding='same')(conv4)
+        conv6 = Conv2D(512, (2, 2), activation='relu', padding='same')(conv5)
+        #pooling2 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv6)
 
-        conv7 = Conv2D(256, (3, 3), activation='relu', padding='same')(pooling2)
-        conv8 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv7)
-        conv9 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
-        pooling3 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv9)
+        #conv7 = Conv2D(256, (3, 3), activation='relu', padding='same')(pooling2)
+        #conv8 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv7)
+        #conv9 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv8)
+        #pooling3 = keras.layers.MaxPooling2D(pool_size=[2, 2], strides=[2, 2], padding='same')(conv9)
 
-        flat = Flatten()(pooling3)
+        flat = Flatten()(conv6)
         net_base = Dense(1024, activation='relu')(flat)
         return net_base
         '''
@@ -124,32 +151,33 @@ class MatchRCNN:
         model.save('mn.h5')
         '''
 
-    def siamese(self, ):
-        ##dataset = self.match_dataset(images, labels)
-        input_tensor = keras.Input(shape=[150, 150, 3])
-        base_model = Model(input_tensor, self.match_base(input_tensor))
+    def siamese( self ):
+        ##dataset = self.match_dataset(images, labels)   
+        input_tensor = keras.Input(shape=[7, 7, 256])
+        base_model = Model(input_tensor,self.match_base(input_tensor))
 
-        input_im1 = keras.Input(shape=[150, 150, 3])
-        input_im2 = keras.Input(shape=[150, 150, 3])
+        input_im1 = keras.Input(shape=[7, 7, 256])
+        input_im2 = keras.Input(shape=[7, 7, 256])
 
         out_im1 = base_model(input_im1)
         out_im2 = base_model(input_im2)
-        diff = keras.layers.substract([out_im1, out_im2])
+        diff = keras.layers.Subtract()([out_im1,out_im2])
 
-        out = Dense(1024, activation='relu')(diff)
-        out = Dense(1, activation='sigmoid')(out)
-        model = Model([input_im1, input_im2], out)
+        out = Dense(1024,activation='relu')(diff)
+        out = Dense(1,activation='sigmoid')(out)
+        model = Model([input_im1,input_im2],out)
         return model
 
     def build_match_v2(self, images, labels):
-
+        
         model = self.siamese()
-        img1_oris, img2_rois, labels = self.match_dataset(images, labels)
-        model.compile(optimizer=tf.train.AdamOptimizer(0.001),
-                      loss=keras.losses.categorical_crossentropy,
+        img1_rois, img2_rois, labels = self.match_dataset(images, labels)
+        model.compile(optimizer=tf.train.AdamOptimizer(0.0001),
+                      loss=keras.losses.sparse_categorical_crossentropy, ##keras.losses.categorical_crossentropy,
                       metrics=['accuracy'])
 
-        model.fit([img1_oris, img2_rois], labels, epochs=50, steps_per_epoch=4442, batch_size=64)  # 训练配置，仅供参考
+        print( "************",labels )
+        model.fit([img1_rois, img2_rois], labels, epochs=50,batch_size=8)#  steps_per_epoch=4442 训练配置，仅供参考
         model.save('mn.h5')
 
     '''
@@ -172,7 +200,6 @@ class MatchRCNN:
         model.fit(dataset, epochs=5, steps_per_epoch=4442)# 训练配置，仅供参考
         model.save('mn.h5')
     '''
-
     def build_match(self, x1, x2):
         x1 = self.conv1(x1)
         x1 = self.conv2(x1)

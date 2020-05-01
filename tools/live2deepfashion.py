@@ -137,7 +137,7 @@ def get_mn_image_pair():
             if video_cut_img_path != real_video_cut_img_path:
                 negative_path_list.append((video_cut_img_path, image_path))
     postive_label_list = [1] * len(postive_path_list)
-    negative_label_list = [1] * len(postive_path_list)
+    negative_label_list = [0] * len(negative_path_list)
     return postive_path_list+negative_path_list, postive_label_list+negative_label_list
 
 
