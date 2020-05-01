@@ -6,31 +6,30 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import datetime
-import logging
-import math
-# import multiprocessing
 import os
+import random
+import datetime
 import re
+import math
+import logging
 from collections import OrderedDict
-# Requires TensorFlow 1.3+ and Keras 2.0.8+.
-from distutils.version import LooseVersion
-
-import keras
-import keras.backend as K
-import keras.engine as KE
-import keras.layers as KL
-import keras.models as KM
+import multiprocessing
 import numpy as np
 import tensorflow as tf
+import keras
+import keras.backend as K
+import keras.layers as KL
+import keras.engine as KE
+import keras.models as KM
 
 from lib import utils
 
+# Requires TensorFlow 1.3+ and Keras 2.0.8+.
+from distutils.version import LooseVersion
+
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
 assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
-setattr(tf.contrib.rnn.GRUCell, '__deepcopy__', lambda self, _: self)
-setattr(tf.contrib.rnn.BasicLSTMCell, '__deepcopy__', lambda self, _: self)
-setattr(tf.contrib.rnn.MultiRNNCell, '__deepcopy__', lambda self, _: self)
+
 
 ############################################################
 #  Utility Functions
@@ -1656,12 +1655,14 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                         batch_mrcnn_bbox = np.zeros(
                             (batch_size,) + mrcnn_bbox.shape, dtype=mrcnn_bbox.dtype)
 
+
             # If more instances than fits in the array, sub-sample from them.
             if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
                 ids = np.random.choice(
                     np.arange(gt_boxes.shape[0]), config.MAX_GT_INSTANCES, replace=False)
                 gt_class_ids = gt_class_ids[ids]
                 gt_boxes = gt_boxes[ids]
+
 
             # Add to batch
             batch_image_meta[b] = image_meta
@@ -1884,6 +1885,7 @@ class MaskRCNN():
                                      train_bn=config.TRAIN_BN,
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
+
             # TODO: clean up (use tf.identify if necessary)
             output_rois = KL.Lambda(lambda x: x * 1, name="output_rois")(rois)
 
@@ -1897,6 +1899,7 @@ class MaskRCNN():
             bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
                 [target_bbox, target_class_ids, mrcnn_bbox])
 
+
             # Model
             inputs = [input_image, input_image_meta,
                       input_rpn_match, input_rpn_bbox, input_gt_class_ids, input_gt_boxes]
@@ -1907,7 +1910,6 @@ class MaskRCNN():
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss]
             model = KM.Model(inputs, outputs, name='mask_rcnn')
-            # model.save('mask_rcnn.h5')
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
@@ -1926,11 +1928,16 @@ class MaskRCNN():
             # Create masks for detections
             detection_boxes = KL.Lambda(lambda x: x[..., :4])(detections)
 
+
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
-                              rpn_rois, rpn_class, rpn_bbox],
+                              rpn_rois, rpn_class, rpn_bbox, detection_boxes, mrcnn_class_logits],
                              name='mask_rcnn')
-            # model.save('mask_rcnn_val.h5')
+
+        # Add multi-GPU support.
+        # if config.GPU_COUNT > 1:
+        #     from mrcnn.parallel_model import ParallelModel
+        #     model = ParallelModel(model, config.GPU_COUNT)
 
         return model
 
@@ -2210,8 +2217,6 @@ class MaskRCNN():
                                         histogram_freq=0, write_graph=True, write_images=False),
             keras.callbacks.ModelCheckpoint(self.checkpoint_path,
                                             verbose=0, save_weights_only=True),
-            # keras.callbacks.Mod(self.checkpoint_path,
-            #                                 verbose=0, save_weights_only=True),
         ]
 
         # Add custom callbacks to the list
@@ -2224,13 +2229,13 @@ class MaskRCNN():
         self.set_trainable(layers)
         self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
 
-        # # Work-around for Windows: Keras fails on Windows when using
-        # # multiprocessing workers. See discussion here:
-        # # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
-        # if os.name is 'nt':
-        #     workers = 0
-        # else:
-        #     workers = multiprocessing.cpu_count()
+        # Work-around for Windows: Keras fails on Windows when using
+        # multiprocessing workers. See discussion here:
+        # https://github.com/matterport/Mask_RCNN/issues/13#issuecomment-353124009
+        if os.name is 'nt':
+            workers = 0
+        else:
+            workers = multiprocessing.cpu_count()
 
         self.keras_model.fit_generator(
             train_generator,
@@ -2244,9 +2249,23 @@ class MaskRCNN():
             workers=1,
             use_multiprocessing=False,
         )
-        print(self.checkpoint_path.replace('.h5','_test.h5'))
-        self.keras_model.save(self.checkpoint_path.replace('.h5','_test.h5'))
         self.epoch = max(self.epoch, epochs)
+
+    def test(self, image_path, config):
+        import cv2
+        import numpy as np
+        image = cv2.imread(image_path)
+
+        result, images = self.detect([image])
+        image = images[0]
+        try:
+            top_one_roi = result[0]['rois'][0]
+            top_one_class_ids = result[0]['class_ids'][0]
+            image = cv2.rectangle(image, (top_one_roi[1], top_one_roi[0]), (top_one_roi[3], top_one_roi[2]), (0, 255, 0), 5)
+        except Exception as e:
+            print(e)
+
+        return image
 
 
     def mold_inputs(self, images):
@@ -2286,22 +2305,6 @@ class MaskRCNN():
         image_metas = np.stack(image_metas)
         windows = np.stack(windows)
         return molded_images, image_metas, windows
-
-    def test(self, image_path, config):
-        import cv2
-        import numpy as np
-        image = cv2.imread(image_path)
-
-        result, images = self.detect([image])
-        image = images[0]
-        try:
-            top_one_roi = result[0]['rois'][0]
-            top_one_class_ids = result[0]['class_ids'][0]
-            image = cv2.rectangle(image, (top_one_roi[1], top_one_roi[0]), (top_one_roi[3], top_one_roi[2]), (0, 255, 0), 5)
-        except Exception as e:
-            print(e)
-
-        return image
 
     def unmold_detections(self, detections, original_image_shape,
                           image_shape, window):
@@ -2396,7 +2399,9 @@ class MaskRCNN():
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, _, _, _ = \
+
+        #[detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, detections_box]
+        detections, classes, bbox, rpn_bbox, _, _, boxes, logits= \
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
         # Process detections
         results = []
@@ -2410,7 +2415,7 @@ class MaskRCNN():
                 "class_ids": final_class_ids,
                 "scores": final_scores,
             })
-        return results
+        return results, molded_images
 
     def detect_molded(self, molded_images, image_metas, verbose=0):
         """Runs the detection pipeline, but expect inputs that are
