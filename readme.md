@@ -5,4 +5,4 @@
   先切割视频、 转换成deepfashion数据集、转换成coco数据集
 
 3.执行match-rcnn
-  执行python main_mn.py --command training --weights coco
+  执行python main_mn.py --command training --weights coco即可
