@@ -8,7 +8,7 @@ Created on Sun Jul 21 21:15:50 2019
 import sys
 
 import constant
-from lib.model_mn_v2 import MatchRCNN
+from lib.model_mn_v3 import MatchRCNN
 
 sys.dont_write_bytecode = True
 
@@ -256,7 +256,9 @@ def main_match(mode, config, model_dir=None):
     img_path_list, label_list = get_mn_image_pair()
     images, labels = [], label_list
     for p1, p2 in img_path_list:
+        print('p1        ',p1)
         image_id_1 = int(p1.split('/')[-2].lstrip('0'))
+        print('image_id_1', image_id_1)
         image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
                                                                          augment=False,
                                                                          augmentation=None)
@@ -291,7 +293,7 @@ if __name__ == "__main__":
     ROOT_DIR = os.path.abspath("./")
     DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
     COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0001.h5")
+    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0003.h5")
 
     # model_dir = './mask_rcnn_deepfashion2_0001.h5'
 
@@ -344,4 +346,4 @@ if __name__ == "__main__":
         config = InferenceConfig()
     # config.display()
     model_dir = './mask_rcnn_deepfashion2_0001.h5'
-    main_match(mode="training", config=config, model_dir=model_dir)
+    main_match(mode="inference", config=config, model_dir=model_dir)
