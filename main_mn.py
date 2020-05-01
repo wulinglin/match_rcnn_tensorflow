@@ -8,7 +8,7 @@ Created on Sun Jul 21 21:15:50 2019
 import sys
 
 import constant
-from lib.model_mn_v3 import MatchRCNN
+from lib.model_mn_v2 import MatchRCNN
 
 sys.dont_write_bytecode = True
 
