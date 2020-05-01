@@ -9,6 +9,8 @@ Written by Waleed Abdulla
 
 import numpy as np
 
+BATCH_SIZE = 2
+
 
 # Base Configuration Class
 # Don't use this class directly. Instead, sub-class it and override
