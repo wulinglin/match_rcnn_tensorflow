@@ -9,7 +9,8 @@ from lib.model_new import MaskRCNN
 
 
 class MatchRCNN:
-    def __init__(self, images, mode, config, model_dir=None, ):
+    def __init__(self, images, mode, config, model_dir=None):
+        self.config = config
         self.model_mask = MaskRCNN(mode, config, model_dir)
         self.model_mask_keras = self.model_mask.keras_model
         self.model_mask_keras.load_weights(model_dir)
@@ -18,8 +19,29 @@ class MatchRCNN:
     def match_dataset(self, images, labels):
         images_concat = []
         for img1,img2 in images:
-            print((self.model_mask.mold_inputs([img1])+self.model_mask.mold_inputs([img2])).shape)
-            self.output.predict(self.model_mask.mold_inputs([img1])+self.model_mask.mold_inputs([img2]))
+            # Mold inputs to format expected by the neural network
+            molded_images, image_metas, windows = self.model_mask.mold_inputs([img1])
+
+            # Validate image sizes
+            # All images in a batch MUST be of the same size
+            image_shape = molded_images[0].shape
+            for g in molded_images[1:]:
+                assert g.shape == image_shape, \
+                    "After resizing, all images must have the same size. Check IMAGE_RESIZE_MODE and image sizes."
+
+            # Anchors
+            anchors = self.model_mask.get_anchors(image_shape)
+            # Duplicate across the batch dimension because Keras requires it
+            # TODO: can this be optimized to avoid duplicating the anchors?
+            anchors = np.broadcast_to(anchors, (self.config.BATCH_SIZE,) + anchors.shape)
+
+            print("molded_images", molded_images)
+            print("image_metas", image_metas)
+            print("anchors", anchors)
+            # Run object detection
+            output_rois = self.output.predict([molded_images, image_metas, anchors], verbose=0)
+
+
             # print(img1.shape)
             # images_concat.extend([img1 , img2])
         # # print(images_concat.shape)
