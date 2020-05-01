@@ -2,7 +2,7 @@ import collections
 import json
 import os
 
-from constant import video_path_head, video_annos_path_head, annos_save_path, path_head, image_path_head, \
+from constant import video_path_head, video_annos_path_head, annos_save_path, image_path_head, \
     image_annos_path_head
 
 if not os.path.exists(annos_save_path):
@@ -71,7 +71,7 @@ def image_data_prepare():
                                  "occlusion": 1,  # 此处无用1表示，一个数字，其中1表示轻微遮挡（包括无遮挡），2表示中度遮挡，3表示重度遮挡。
                                  "category_name": cat
                              }}
-                with open(annos_save_path +'0' + '{}.json'.format(item_id), 'w+') as f:
+                with open(annos_save_path + '0' + '{}.json'.format(item_id), 'w+') as f:
                     json.dump(temp_dict, f)
     print('总条数', m, '有效条数', n)
 
@@ -114,36 +114,10 @@ def video_data_prepare():
     print('总条数', m, '有效条数', n)
 
 
-def get_mn_image_pair():
-    import random
-    postive_path_list = []
-    negative_path_list = []
-    all_video_cut_path = []
-    for item_id in os.listdir(image_path_head):
-        if not os.path.isdir(image_path_head + item_id):
-            continue
-        image_path = image_path_head + item_id + '/' + '0.jpg'
-        video_cut_img_path = video_path_head + item_id + '/' + '0.jpg'
-        all_video_cut_path.append(video_cut_img_path)
-        postive_path_list.append((video_cut_img_path, image_path))
-
-    for item_id in os.listdir(image_path_head):
-        if not os.path.isdir(image_path_head + item_id):
-            continue
-        image_path = image_path_head + item_id + '/' + '0.jpg'
-        real_video_cut_img_path = video_path_head + item_id + '/' + '0.jpg'
-        for i in range(3):
-            video_cut_img_path = random.choice(all_video_cut_path)
-            if video_cut_img_path != real_video_cut_img_path:
-                negative_path_list.append((video_cut_img_path, image_path))
-    postive_label_list = [1] * len(postive_path_list)
-    negative_label_list = [0] * len(negative_path_list)
-    return postive_path_list+negative_path_list, postive_label_list+negative_label_list
-
-
 if __name__ == "__main__":
+    pass
     # 镇南的模型
     # video_data_prepare()
     # pass
-    video_data_prepare()
-    image_data_prepare()
+    # video_data_prepare()
+    # image_data_prepare()
