@@ -8,8 +8,9 @@ Created on Sun Jul 21 21:15:50 2019
 import sys
 
 import constant
-from lib.model_mn_v2 import MatchRCNN
-from tools import data_utils
+##from lib.model_mn_v2 import MatchRCNN
+
+from lib.get_rcnn_feature_nopair import Get_RCNN_Feature
 
 sys.dont_write_bytecode = True
 
@@ -20,6 +21,7 @@ from pycocotools.coco import COCO
 from pycocotools import mask as maskUtils
 from lib.config import Config
 from lib import utils
+import pandas as pd
 
 
 class DeepFashion2Config(Config):
@@ -46,8 +48,6 @@ class DeepFashion2Config(Config):
     train_json_path = constant.train_json_path
     valid_img_dir = constant.valid_img_dir
     valid_json_path = constant.valid_json_path
-    test_video_dir = constant.test_video_path_head
-    test_img_path = constant.test_image_path
 
 
 ############################################################
@@ -249,42 +249,61 @@ class DeepFashion2Dataset(utils.Dataset):
 
 
 def main_match(mode, config, model_dir=None):
-    from tools.data_utils import get_mn_test_image_pair
-    img1_fpn_data = []
-    img2_fpn_data = []
-    img1_rois_data = []
-    img2_rois_data = []
-    labels = []
-    if mode == 'training':
-        positive_path = constant.train_data_all_path + 'label_1/'
-        negtive_path = constant.train_data_all_path + 'label_0/'
-        for each in os.listdir(positive_path):
-            fpn_future = data_utils.read_npy_file(positive_path + each + '/fpn5_feature.npy')
-            rois_feature = data_utils.read_npy_file(positive_path + each + '/rois_feature.npy')
-            img1_fpn_data.append(fpn_future[0])
-            img2_fpn_data.append(fpn_future[1])
-            img1_rois_data.append(rois_feature[0])
-            img2_rois_data.append(rois_feature[1])
-            labels.append(1)
+    from tools.data_utils import get_mn_image_pair
+    from lib.model_new import load_image_gt
 
-        for each in os.listdir(negtive_path):
-            fpn_future = data_utils.read_npy_file(negtive_path + each + '/fpn5_feature.npy')
-            rois_feature = data_utils.read_npy_file(negtive_path + each + '/rois_feature.npy')
-            img1_fpn_data.append(fpn_future[0])
-            img2_fpn_data.append(fpn_future[1])
-            img1_rois_data.append(rois_feature[0])
-            img2_rois_data.append(rois_feature[1])
-            labels.append(0)
+    dataset_train = DeepFashion2Dataset()
+    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    dataset_train.prepare()
 
-        match_model = MatchRCNN(mode, config, model_dir)
-        # print('img1_rois_data =\n', img1_rois_data, 'img2_rois_data =\n', img2_rois_data, 'img1_fpn_data =\n',
-        #       img1_fpn_data,'img2_fpn_data =\n', img2_fpn_data, 'labels =\n',labels)
-        match_model.build_match_v2(img1_rois_data, img2_rois_data, img1_fpn_data, img2_fpn_data, labels)
-    elif mode == 'inference':
-        test_path_pair_dict = get_mn_test_image_pair()
-        match_model = MatchRCNN(mode, config, model_dir)
-        match_model.predict(test_path_pair_dict)
+    img_path_list, label_list = get_mn_image_pair()
+    images, labels = [], label_list
+    count = 0 
 
+    rcnn_model = Get_RCNN_Feature(mode, config, model_dir)
+
+    raw_img_path = []
+    img_feature_path = []
+    img_name = []
+
+    raw_video_frame_path = []
+    video_feature_path = []
+    video_frame_name = []
+    label_all = []
+    count= 0
+    for p1, p2 in img_path_list:
+
+        raw_video_frame_path.append( p1 )
+        p1_video_path = p1.split("/")[-2]
+        p1_frame_name = p1.split("/")[-1]
+        video_frame_name.append( p1_frame_name )
+        video_feature_path.append( "train_data_feature/video_feature/" + p1_video_path )
+
+        raw_img_path.append( p2 )
+        p2_image_path = p2.split("/")[-2]
+        p2_image_name = p2.split("/")[-1]
+        img_name.append( p2_image_name )
+        img_feature_path.append( "train_data_feature/image_feature/" + p2_image_path )
+
+        label_all.append( label_list[count] )
+        count += 1 
+
+    df_info = pd.DataFrame({"raw_video_frame_path":raw_video_frame_path,"video_feature_path":video_feature_path,"video_frame_name":video_frame_name, \
+                     "raw_img_path":raw_img_path, "img_feature_path":img_feature_path,"img_name":img_name,"label":label_all })
+    df_info.to_csv("pair_data_info.csv", index = False, encoding = "utf8")
+
+    
+    for p1, p1_feature_path, p1_name,  p2, p2_feature_path, p2_name in zip(raw_video_frame_path, video_feature_path, video_frame_name, \
+                                                                            raw_img_path, img_feature_path, img_name):
+        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
+        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1, augment=False, augmentation=None)
+        rcnn_model.save_dataset( image_1, p1_feature_path, p1_name)
+
+        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
+        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
+                                                                         augment=False,
+                                                                         augmentation=None)
+        rcnn_model.save_dataset( image_2, p2_feature_path, p2_name)
 
 def train(model, config):
     """
@@ -356,10 +375,8 @@ if __name__ == "__main__":
             GPU_COUNT = 1
             IMAGES_PER_GPU = 1
 
-
         config = InferenceConfig()
     # config.display()
-    # Select weights file to load
-    # todo  find_last
     model_dir = './mask_rcnn_deepfashion2_0003.h5'
-    main_match(mode=args.command, config=config, model_dir=model_dir)
+    
+    main_match(mode="inference", config=config, model_dir=model_dir)

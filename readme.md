@@ -2,10 +2,20 @@
 1.在constant.py文件中更改数据集的地址
 
 2.执行main_data_process.py预处理数据
+  python3 main_data_process.py
   先切割视频、 转换成deepfashion数据集、转换成coco数据集
 
 3.执行mask-rcnn模型
-  python main.py
+  python3 main.py --command training --weights last
+ 
+4.保存训练样本对特征到本地
+  (1)训练样本对特征
+  python3 main_mn_get_feature.py  --weights last
+  (2)训练样本非对的特征
+  python3 main_mn_get_feature_nopair.py  --weights last
+
+5.执行match-rcnn检索模型
+  python3 main_mn.py --command inference --weights last
   
-4.执行match-rcnn模型
-  执行python main_mn.py --command training --weights coco即可
+6.
+  
