@@ -58,7 +58,7 @@ class Get_RCNN_Feature:
             print("output_rois_score.shape:", output_rois_score.shape)
             label_count = output_rois_score.shape[-1]
             label_dict = {}
-            for ii in range(label_count):
+            for ii in range(1, label_count):  # 因为0是背景类
                 tmp = output_rois_score[0][:, ii]
                 ##print("tmp_shape:", tmp.shape)
                 tmp_idx = np.argsort(-tmp)[0:2]  ###np.argmax(tmp)[:-1]
@@ -93,7 +93,7 @@ class Get_RCNN_Feature:
             if count % 2 == 0:
                 img_data_npy = np.stack([img_data[0], img_data[1]], axis=0)
                 img_fpn_data_npy = np.stack([img_fpn_data[0], img_fpn_data[1]], axis=0)
-                abs_data_path = constant.train_data_all_path+"label_" + str(labels[0]) + "/" + data_path + "/"
+                abs_data_path = constant.train_data_all_path + "label_" + str(labels[0]) + "/" + data_path + "/"
 
                 if not os.path.exists(abs_data_path):
                     os.makedirs(abs_data_path)
