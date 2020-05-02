@@ -22,3 +22,5 @@ test_image_path = test_path_head + 'image/'
 
 train_data_all_path = path_head+'/train_data_all/'
 train_data_all_path_no_pair = path_head+'/train_data_all_nopair/'
+test_video_frame_annos_path = 'video_boxes.json'
+test_image_frame_annos_path = 'image_boxes.json'

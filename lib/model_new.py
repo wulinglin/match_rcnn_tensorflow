@@ -7,6 +7,7 @@ Written by Waleed Abdulla
 """
 
 import os
+import cv2
 import random
 import datetime
 import re
@@ -26,6 +27,7 @@ from lib import utils
 
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
+from lib.utils import Dataset
 
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
 assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
@@ -2251,7 +2253,7 @@ class MaskRCNN():
         )
         self.epoch = max(self.epoch, epochs)
 
-    def test(self, image_path, config):
+    def test(self, image_path):
         import cv2
         import numpy as np
         image = cv2.imread(image_path)
@@ -2266,6 +2268,23 @@ class MaskRCNN():
             print(e)
 
         return image
+
+    def inference(self, images_path, outputs_path):
+        import json
+        dataset = {}
+        for dir_name in os.listdir(images_path):
+            for image_name in os.listdir(os.path.join(images_path,dir_name)):
+                image = cv2.imread(os.path.join(images_path, dir_name, image_name))
+                result, images = self.detect([image])
+                results = []
+                for id in range(len(result[0]['rois'])):
+                    temp = {'class_id': int(result[0]['class_ids'][id]),
+                            'bbox': [int(i) for i in result[0]['rois'][id]]}
+                    results.append(temp)
+                dataset[dir_name+'_'+image_name] = {'result': results}
+
+        with open(outputs_path, 'w') as f:
+            json.dump(dataset, f)
 
 
     def mold_inputs(self, images):

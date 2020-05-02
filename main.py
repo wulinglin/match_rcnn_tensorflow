@@ -6,6 +6,7 @@ Created on Sun Jul 21 21:15:50 2019
 """
 
 import sys
+import constant
 
 import constant
 from lib.model_mn_v2 import MatchRCNN
@@ -288,8 +289,8 @@ def train(model, config):
                 layers='heads')
 
 
-def test(model, image_path, config):
-    model.test(image_path, config)
+def test(model, images_path, outputs_path):
+    model.inference(images_path, outputs_path)
 
 
 if __name__ == "__main__":
@@ -390,8 +391,9 @@ if __name__ == "__main__":
         train(model, config)
 
     elif args.command == "test":
-        # test(model, '../Live_demo_20200117/image/000004/0.jpg', config)
-        test(model, '../Live_demo_20200117/image/000008/0.jpg', config)
+        # test(model, constant.valid_img_dir, constant.test_video_frame_annos_path)
+        test(model, constant.test_image_dir, constant.test_image_frame_annos_path)
+        test(model, constant.test_video_frame_dir, constant.test_video_frame_annos_path)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'splash'".format(args.command))
