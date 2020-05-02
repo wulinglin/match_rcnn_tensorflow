@@ -43,8 +43,10 @@ class Config(object):
     # might take a while, so don't set this too small to avoid spending
     # a lot of time on validation stats.
 
-    STEPS_PER_EPOCH = 3000
-    EPOCHS = 5
+    STEPS_PER_EPOCH = 20000
+    EPOCHS = 3
+    # STEPS_PER_EPOCH = 1
+    # EPOCHS = 1
 
     # Number of validation steps to run at the end of every training epoch.
     # A bigger number improves accuracy of validation stats, but slows

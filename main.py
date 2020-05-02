@@ -43,10 +43,10 @@ class DeepFashion2Config(Config):
 
     USE_MINI_MASK = True
 
-    train_img_dir = constant.train_json_path
-    valid_json_path = constant.valid_json_path
     train_img_dir = constant.train_img_dir
     train_json_path = constant.train_json_path
+    valid_json_path = constant.valid_json_path
+    valid_img_dir = constant.valid_img_dir
 
 
 ############################################################
@@ -248,7 +248,7 @@ class DeepFashion2Dataset(utils.Dataset):
 
 
 def main_match(mode, config, model_dir=None):
-    from tools.live2deepfashion import get_mn_image_pair
+    from tools.data_utils import get_mn_image_pair
     from lib.model_new import load_image_gt
 
     dataset_train = DeepFashion2Dataset()
@@ -392,8 +392,8 @@ if __name__ == "__main__":
 
     elif args.command == "test":
         # test(model, constant.valid_img_dir, constant.test_video_frame_annos_path)
-        test(model, constant.test_image_dir, constant.test_image_frame_annos_path)
-        test(model, constant.test_video_frame_dir, constant.test_video_frame_annos_path)
+        test(model, constant.test_image_path, constant.test_image_frame_annos_path)
+        test(model, constant.test_video_path_head, constant.test_video_frame_annos_path)
     else:
         print("'{}' is not recognized. "
               "Use 'train' or 'splash'".format(args.command))

@@ -360,6 +360,7 @@ if __name__ == "__main__":
 
         config = InferenceConfig()
     # config.display()
-    model_dir = './mask_rcnn_deepfashion2_0003.h5'
+    from tools.data_utils import find_last
+    model_dir=find_last()
     
     main_mn_get_feature(mode="inference", config=config, model_dir=model_dir)

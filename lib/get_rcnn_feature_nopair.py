@@ -103,7 +103,7 @@ class Get_RCNN_Feature:
                 os.makedirs(abs_data_path)
             np.save( abs_data_path + "/" + image_name + ".rois_feature.npy", img_data_npy)
 
-            np.save( abs_data_path + "/" + image_name + "fpn5_feature.npy", img_fpn_data_npy)
+            np.save( abs_data_path + "/" + image_name + ".fpn5_feature.npy", img_fpn_data_npy)
         
         ##dataset = tf.data.Dataset.from_tensor_slices((images_concat, labels))
         ###dataset = dataset.shuffle(buffer_size=1000)

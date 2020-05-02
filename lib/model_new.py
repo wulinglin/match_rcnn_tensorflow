@@ -1950,6 +1950,7 @@ class MaskRCNN():
             The path of the last checkpoint file
         """
         # Get directory names. Each directory corresponds to a model
+        print(self.model_dir)
         dir_names = next(os.walk(self.model_dir))[1]
         key = self.config.NAME.lower()
         dir_names = filter(lambda f: f.startswith(key), dir_names)
@@ -2273,7 +2274,11 @@ class MaskRCNN():
         import json
         dataset = {}
         for dir_name in os.listdir(images_path):
+            if '.DS_Store' in dir_name:
+                continue
             for image_name in os.listdir(os.path.join(images_path,dir_name)):
+                if '.DS_Store' in image_name:
+                    continue
                 image = cv2.imread(os.path.join(images_path, dir_name, image_name))
                 result, images = self.detect([image])
                 results = []

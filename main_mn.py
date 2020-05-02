@@ -355,11 +355,12 @@ if __name__ == "__main__":
             # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
             GPU_COUNT = 1
             IMAGES_PER_GPU = 1
-
-
         config = InferenceConfig()
+
+
     # config.display()
     # Select weights file to load
     # todo  find_last
-    model_dir = './mask_rcnn_deepfashion2_0003.h5'
+    from tools.data_utils import find_last
+    model_dir=find_last()
     main_match(mode=args.command, config=config, model_dir=model_dir)

@@ -15,7 +15,8 @@ train_json_path = path_head + "train.json"
 valid_img_dir = path_head + "video_cut"
 valid_json_path = path_head + "train.json"
 
-test_path_head = '/tcdata/test_dataset_3w/'
+# test_path_head = '/tcdata/test_dataset_3w/'
+test_path_head = '../live_demo_test/'
 test_video_path_raw = test_path_head + 'video/'
 test_video_path_head = test_path_head + 'video_cut/'
 test_image_path = test_path_head + 'image/'
@@ -24,3 +25,5 @@ train_data_all_path = path_head+'/train_data_all/'
 train_data_all_path_no_pair = path_head+'/train_data_all_nopair/'
 test_video_frame_annos_path = 'video_boxes.json'
 test_image_frame_annos_path = 'image_boxes.json'
+test_match_result_path = 'match_result.json'
+
