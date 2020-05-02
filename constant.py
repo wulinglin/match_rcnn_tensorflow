@@ -1,4 +1,4 @@
-path_head = '../Live_demo_20200117/'
+path_head = '../Live_demo_202001171/'
 
 image_path_head = path_head + 'image/'
 image_annos_path_head = path_head + 'image_annotation/'
@@ -13,3 +13,10 @@ train_img_dir = path_head + "video_cut"
 train_json_path = path_head + "train.json"
 valid_img_dir = path_head + "video_cut"
 valid_json_path = path_head + "train.json"
+
+test_video_frame_dir = path_head + 'video_cut'
+test_image_dir = path_head + 'image'
+test_video_frame_annos_path = 'video_boxes.json'
+test_image_frame_annos_path = 'image_boxes.json'
+
+
