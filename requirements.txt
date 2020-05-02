@@ -61,7 +61,7 @@ ipython-genutils==0.2.0
 jedi==0.16.0
 jmespath==0.9.5
 joblib==0.14.1
-Keras==2.1.0
+Keras==2.1.6
 Keras-Applications==1.0.8
 Keras-Preprocessing==1.1.0
 kiwisolver==1.1.0

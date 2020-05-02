@@ -8,8 +8,14 @@
 3.执行mask-rcnn模型
   python3 main.py --command training --weights last
  
-4.保存特征到本地
+4.保存训练样本对特征到本地
+  (1)训练样本对特征
   python3 main_mn_get_feature.py  --weights last
+  (2)训练样本非对的特征
+  python3 main_mn_get_feature_nopair.py  --weights last
 
 5.执行match-rcnn检索模型
   python3 main_mn.py --command inference --weights last
+  
+6.
+  
