@@ -188,7 +188,7 @@ def train( train_file, base_path ):
     f_test.write("step \tloss \taccuracy\n")
 
     # train model
-    train_epoch = 5000
+    train_epoch = 10 # todo 8000
     batch_size = 8
     load_maxnum = 10000
     learn_rate = 0.0001

@@ -5,7 +5,7 @@ python3 main_data_process.py
 
 #（三）以下是mask模型：根据video做目标检测
 ## 1.训练数据（因为选的last所以需要丢一个训练好的模型继续训练）
-python3 main.py --command train --weights last
+# python3 main.py --command train --weights last
 ## 2.测试数据
 python3 main.py --command test --weights last
 

@@ -35,6 +35,7 @@ def video_split_and_save(data_dir, save_dir):
     # save_dir = "/Users/lingwu/data/Live_demo_20200117/video_cut/"  # 帧文件保存目录
 
     start_time = time.time()
+    count = 0
     for parents, dirs, filenames in os.walk(data_dir):
         print(parents, dirs, filenames)
         # if parents == DATA_DIR:
@@ -47,7 +48,9 @@ def video_split_and_save(data_dir, save_dir):
         save_path = save_dir + "/"
         # 对每视频数据进行遍历
         for file in filenames:
-            print(file)
+            count+=1
+            if count>100: # todo
+                break
             file_name = file.split(".")[0]
             save_path_ = save_path + "/" + file_name
             if not os.path.isdir(save_path_):

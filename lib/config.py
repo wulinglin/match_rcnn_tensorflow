@@ -43,8 +43,8 @@ class Config(object):
     # might take a while, so don't set this too small to avoid spending
     # a lot of time on validation stats.
 
-    STEPS_PER_EPOCH = 20000
-    EPOCHS = 3
+    STEPS_PER_EPOCH = 10 # todo 20000
+    EPOCHS = 1
     # STEPS_PER_EPOCH = 1
     # EPOCHS = 1
 

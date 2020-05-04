@@ -1,6 +1,6 @@
 # (一)在constant.py文件中更改数据集的地址
   
-#（二）预处理数据: 先切割视频、 转换成deepfashion数据集、转换成coco数据集z
+#（二）预处理数据: 先切割视频、 转换成deepfashion数据集、转换成coco数据集
 python3 main_data_process.py
 
 #（三）以下是mask模型：根据video做目标检测
