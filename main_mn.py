@@ -6,11 +6,10 @@ Created on Sun Jul 21 21:15:50 2019
 """
 
 import sys
-import constant
 
 import constant
 from lib.model_mn_v2 import MatchRCNN
-from lib.model_new import MaskRCNN
+from tools import data_utils
 
 sys.dont_write_bytecode = True
 
@@ -45,8 +44,10 @@ class DeepFashion2Config(Config):
 
     train_img_dir = constant.train_img_dir
     train_json_path = constant.train_json_path
-    valid_json_path = constant.valid_json_path
     valid_img_dir = constant.valid_img_dir
+    valid_json_path = constant.valid_json_path
+    test_video_dir = constant.test_video_path_head
+    test_img_path = constant.test_image_path
 
 
 ############################################################
@@ -58,7 +59,7 @@ class DeepFashion2Dataset(utils.Dataset):
                   class_map=None, return_coco=False):
         """Load the DeepFashion2 dataset.
         """
-
+        print(json_path)
         coco = COCO(json_path)
 
         # Load all classes or a subset?
@@ -248,28 +249,41 @@ class DeepFashion2Dataset(utils.Dataset):
 
 
 def main_match(mode, config, model_dir=None):
-    from tools.data_utils import get_mn_image_pair
-    from lib.model_new import load_image_gt
+    from tools.data_utils import get_mn_test_image_pair
+    img1_fpn_data = []
+    img2_fpn_data = []
+    img1_rois_data = []
+    img2_rois_data = []
+    labels = []
+    if mode == 'training':
+        positive_path = constant.train_data_all_path + 'label_1/'
+        negtive_path = constant.train_data_all_path + 'label_0/'
+        for each in os.listdir(positive_path):
+            fpn_future = data_utils.read_npy_file(positive_path + each + '/fpn5_feature.npy')
+            rois_feature = data_utils.read_npy_file(positive_path + each + '/rois_feature.npy')
+            img1_fpn_data.append(fpn_future[0])
+            img2_fpn_data.append(fpn_future[1])
+            img1_rois_data.append(rois_feature[0])
+            img2_rois_data.append(rois_feature[1])
+            labels.append(1)
 
-    dataset_train = DeepFashion2Dataset()
-    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    dataset_train.prepare()
+        for each in os.listdir(negtive_path):
+            fpn_future = data_utils.read_npy_file(negtive_path + each + '/fpn5_feature.npy')
+            rois_feature = data_utils.read_npy_file(negtive_path + each + '/rois_feature.npy')
+            img1_fpn_data.append(fpn_future[0])
+            img2_fpn_data.append(fpn_future[1])
+            img1_rois_data.append(rois_feature[0])
+            img2_rois_data.append(rois_feature[1])
+            labels.append(0)
 
-    img_path_list, label_list = get_mn_image_pair()
-    images, labels = [], label_list
-    for p1, p2 in img_path_list:
-        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
-        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
-                                                                         augment=False,
-                                                                         augmentation=None)
-        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
-        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
-                                                                         augment=False,
-                                                                         augmentation=None)
-        images.append((image_1, image_2))
-
-    match_model = MatchRCNN(mode, config, model_dir)
-    match_model.build_match_v2(images, labels)
+        match_model = MatchRCNN(mode, config, model_dir)
+        # print('img1_rois_data =\n', img1_rois_data, 'img2_rois_data =\n', img2_rois_data, 'img1_fpn_data =\n',
+        #       img1_fpn_data,'img2_fpn_data =\n', img2_fpn_data, 'labels =\n',labels)
+        match_model.build_match_v2(img1_rois_data, img2_rois_data, img1_fpn_data, img2_fpn_data, labels)
+    elif mode == 'inference':
+        test_path_pair_dict = get_mn_test_image_pair()
+        match_model = MatchRCNN(mode, config, model_dir)
+        match_model.predict(test_path_pair_dict)
 
 
 def train(model, config):
@@ -285,12 +299,8 @@ def train(model, config):
 
     model.train(dataset_train, dataset_valid,
                 learning_rate=config.LEARNING_RATE,
-                epochs=config.EPOCHS,
+                epochs=1,
                 layers='heads')
-
-
-def test(model, images_path, outputs_path):
-    model.inference(images_path, outputs_path)
 
 
 if __name__ == "__main__":
@@ -345,59 +355,12 @@ if __name__ == "__main__":
             # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
             GPU_COUNT = 1
             IMAGES_PER_GPU = 1
-
-
         config = InferenceConfig()
-    config.display()
-    # model_dir = './mask_rcnn_deepfashion2_0001.h5'
-    # main_match(mode="training",config=config, model_dir=model_dir)
 
-    # Create model
-    if args.command == "train":
-        model = MaskRCNN(mode="training", config=config,
-                         model_dir=args.logs)
-    else:
-        model = MaskRCNN(mode="inference", config=config,
-                         model_dir=args.logs)
 
+    # config.display()
     # Select weights file to load
-    if args.weights.lower() == "coco":
-        weights_path = COCO_WEIGHTS_PATH
-        # Download weights file
-        if not os.path.exists(weights_path):
-            utils.download_trained_weights(weights_path)
-    elif args.weights.lower() == "last":
-        # Find last trained weights
-        weights_path = model.find_last()
-    elif args.weights.lower() == "imagenet":
-        # Start from ImageNet trained weights
-        weights_path = model.get_imagenet_weights()
-    else:
-        weights_path = args.weights
-
-    # Load weights
-    print("Loading weights ", weights_path)
-    if args.weights.lower() == "coco":
-        # Exclude the last layers because they require a matching
-        # number of classes
-        model.load_weights(weights_path, by_name=True, exclude=[
-            "mrcnn_class_logits", "mrcnn_bbox_fc",
-            "mrcnn_bbox", "mrcnn_mask"])
-    elif args.weights:
-        model.load_weights(weights_path, by_name=True)
-
-    # Train or evaluate
-    if args.command == "train":
-        train(model, config)
-
-    elif args.command == "test":
-        # test(model, constant.valid_img_dir, constant.test_video_frame_annos_path)
-        if not os.path.exists(constant.test_image_frame_annos_path):
-            print('image_inference')
-            test(model, constant.test_image_path, constant.test_image_frame_annos_path)
-        if not os.path.exists(constant.test_video_frame_annos_path):
-            print('video_inference')
-            test(model, constant.test_video_path_head, constant.test_video_frame_annos_path)
-    else:
-        print("'{}' is not recognized. "
-              "Use 'train' or 'splash'".format(args.command))
+    # todo  find_last
+    from tools.data_utils import find_last
+    model_dir=find_last()
+    main_match(mode=args.command, config=config, model_dir=model_dir)

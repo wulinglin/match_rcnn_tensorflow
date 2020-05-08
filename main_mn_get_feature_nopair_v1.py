@@ -6,11 +6,13 @@ Created on Sun Jul 21 21:15:50 2019
 """
 
 import sys
-import constant
 
 import constant
-from lib.model_mn_v2 import MatchRCNN
-from lib.model_new import MaskRCNN
+from lib.get_rcnn_feature_nopair import Get_RCNN_Feature
+from lib.model_new import load_image_gt_v2
+from tools.data_utils import get_mn_test_image_pair
+
+##from lib.model_mn_v2 import MatchRCNN
 
 sys.dont_write_bytecode = True
 
@@ -21,6 +23,7 @@ from pycocotools.coco import COCO
 from pycocotools import mask as maskUtils
 from lib.config import Config
 from lib import utils
+import pandas as pd
 
 
 class DeepFashion2Config(Config):
@@ -45,8 +48,8 @@ class DeepFashion2Config(Config):
 
     train_img_dir = constant.train_img_dir
     train_json_path = constant.train_json_path
-    valid_json_path = constant.valid_json_path
     valid_img_dir = constant.valid_img_dir
+    valid_json_path = constant.valid_json_path
 
 
 ############################################################
@@ -58,7 +61,7 @@ class DeepFashion2Dataset(utils.Dataset):
                   class_map=None, return_coco=False):
         """Load the DeepFashion2 dataset.
         """
-
+        print(json_path)
         coco = COCO(json_path)
 
         # Load all classes or a subset?
@@ -247,29 +250,180 @@ class DeepFashion2Dataset(utils.Dataset):
         return m
 
 
-def main_match(mode, config, model_dir=None):
+def main_match_train(mode, config, model_dir=None):
     from tools.data_utils import get_mn_image_pair
-    from lib.model_new import load_image_gt
-
-    dataset_train = DeepFashion2Dataset()
-    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    dataset_train.prepare()
+    #
+    # dataset_train = DeepFashion2Dataset()
+    # dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    # dataset_train.prepare()
 
     img_path_list, label_list = get_mn_image_pair()
-    images, labels = [], label_list
-    for p1, p2 in img_path_list:
-        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
-        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
-                                                                         augment=False,
-                                                                         augmentation=None)
-        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
-        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
-                                                                         augment=False,
-                                                                         augmentation=None)
-        images.append((image_1, image_2))
 
-    match_model = MatchRCNN(mode, config, model_dir)
-    match_model.build_match_v2(images, labels)
+    rcnn_model = Get_RCNN_Feature(mode, config, model_dir)
+
+    raw_img_path = []
+    img_feature_path = []
+    img_name = []
+
+    raw_video_frame_path = []
+    video_feature_path = []
+    video_frame_name = []
+    label_all = []
+    count = 0
+    # raw_video_frame_path,video_feature_path,video_frame_name,raw_img_path,img_feature_path,img_name,label
+    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000002/0.jpg,train_data_feature/image_feature/000002,0.jpg,1
+    # ../Live_demo_20200117/video_cut/000001/0.jpg,train_data_feature/video_feature/000001,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,1
+    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,0
+    for p1, p2 in img_path_list:
+        raw_video_frame_path.append(p1)
+        p1_video_path = p1.split("/")[-2]
+        p1_frame_name = p1.split("/")[-1]
+        video_frame_name.append(p1_frame_name)
+        video_feature_path.append(
+            constant.path_head_save + "{}_data_feature/video_feature/".format(mode) + p1_video_path)
+
+        raw_img_path.append(p2)
+        p2_image_path = p2.split("/")[-2]
+        p2_image_name = p2.split("/")[-1]
+        img_name.append(p2_image_name)
+        img_feature_path.append(constant.path_head_save + "{}_data_feature/image_feature/".format(mode) + p2_image_path)
+        if mode not in ['inference', 'test', 'predict']:
+            label_all.append(label_list[count])
+        count += 1
+        if count % 10 == 0:
+            print('1111 match train', count)
+
+    df_info = pd.DataFrame({"raw_video_frame_path": raw_video_frame_path, "video_feature_path": video_feature_path,
+                            "video_frame_name": video_frame_name, \
+                            "raw_img_path": raw_img_path, "img_feature_path": img_feature_path, "img_name": img_name,
+                            "label": label_all})
+    df_info.to_csv(constant.path_head_save + "pair_data_info_{}.csv".format(mode), index=False, encoding="utf8")
+
+    count = 0
+    for p1, p1_feature_path, p1_name, p2, p2_feature_path, p2_name in zip(raw_video_frame_path, video_feature_path,
+                                                                          video_frame_name, \
+                                                                          raw_img_path, img_feature_path, img_name):
+
+        count += 1
+        if count % 10 == 0:
+            print('2222 match train', count)
+
+        image_1 = load_image_gt_v2(p1, config)
+        rcnn_model.save_dataset(image_1, p1_feature_path, p1_name)
+
+        image_2 = load_image_gt_v2(p2, config)
+
+        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
+        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
+
+
+def main_match_test(mode, config, model_dir=None):
+    # dataset_train = DeepFashion2Dataset()
+    # dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    # dataset_train.prepare()
+
+    test_video_path_list, test_img_path_list = get_mn_test_image_pair()
+
+    # todo
+    test_video_path_list, test_img_path_list = test_video_path_list, test_img_path_list
+    images = []
+
+    rcnn_model = Get_RCNN_Feature(mode, config, model_dir)
+
+    # raw_img_path = []
+    # img_feature_path = []
+    # img_name = []
+    #
+    # raw_video_frame_path = []
+    # video_feature_path = []
+    # video_frame_name = []
+    # label_all = []
+    # raw_video_frame_path,video_feature_path,video_frame_name,raw_img_path,img_feature_path,img_name,label
+    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000002/0.jpg,train_data_feature/image_feature/000002,0.jpg,1
+    # ../Live_demo_20200117/video_cut/000001/0.jpg,train_data_feature/video_feature/000001,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,1
+    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,0
+    count = 0
+    print(len(test_video_path_list))
+    drop_list = []
+    for p1 in test_video_path_list:
+        if '.DS_Store' in p1:
+            continue
+        # raw_video_frame_path.append(p1)
+        p1_video_path = p1.split("/")[-2]
+        p1_frame_name = p1.split("/")[-1]
+        # video_frame_name.append(p1_frame_name)
+        # video_feature_path.append(
+        #     constant.path_head_save + "{}_data_feature/video_feature/".format(mode) + p1_video_path)
+        # try:
+        image_1 = load_image_gt_v2(p1, config)
+        count += 1
+        # except:
+            # drop_list.append(p1)
+            # continue
+        if count % 10 == 0:
+            print('3333 match test', count)
+        p1_feature_path = constant.path_head_save + "{}_data_feature/video_feature/".format(mode) + p1_video_path
+        rcnn_model.save_dataset(image_1, p1_feature_path, p1_frame_name)
+
+    print('-'*30,len(test_img_path_list))
+    count = 0
+    for p2 in test_img_path_list:
+        if '.DS_Store' in p2:
+            continue
+        # raw_img_path.append(p2)
+        p2_image_path = p2.split("/")[-2]
+        p2_image_name = p2.split("/")[-1]
+        # img_name.append(p2_image_name)
+        # img_feature_path.append(constant.path_head_save + "{}_data_feature/image_feature/".format(mode) + p2_image_path)
+        p2_feature_path = constant.path_head_save + "{}_data_feature/image_feature/".format(mode) + p2_image_path
+        # try:
+        image_2 = load_image_gt_v2(p2, config)
+        count += 1
+        if count % 10 == 0:
+            print('3333 match test', count)
+        rcnn_model.save_dataset(image_2, p2_feature_path, p2_image_name)
+        # except:
+            # drop_list.append(p2)
+            # continue
+
+    raw_img_path = []
+    img_feature_path = []
+    img_name = []
+
+    raw_video_frame_path = []
+    video_feature_path = []
+    video_frame_name = []
+    count=0
+    for p1 in test_video_path_list:
+
+        if '.DS_Store' in p1 or p1 in drop_list:
+            continue
+        for p2 in test_img_path_list:
+            if '.DS_Store' in p2 or p2 in drop_list:
+                continue
+            raw_video_frame_path.append(p1)
+            p1_video_path = p1.split("/")[-2]
+            p1_frame_name = p1.split("/")[-1]
+            video_frame_name.append(p1_frame_name)
+            video_feature_path.append(constant.path_head_save +"{}_data_feature/video_feature/".format(mode) + p1_video_path)
+
+            raw_img_path.append(p2)
+            p2_image_path = p2.split("/")[-2]
+            p2_image_name = p2.split("/")[-1]
+            img_name.append(p2_image_name)
+            img_feature_path.append(constant.path_head_save +"{}_data_feature/image_feature/".format(mode) + p2_image_path)
+
+            count += 1
+            if count % 10 == 0:
+                print('3333 match test', count)
+    print(len(raw_video_frame_path),len(video_feature_path),len(video_frame_name),
+          len(raw_img_path),len(img_feature_path),len(img_name))
+    df_info = pd.DataFrame({"raw_video_frame_path": raw_video_frame_path, "video_feature_path": video_feature_path,
+                            "video_frame_name": video_frame_name, \
+                            "raw_img_path": raw_img_path, "img_feature_path": img_feature_path, "img_name": img_name,
+                            })
+
+    df_info.to_csv(constant.path_head_save + "pair_data_info_{}.csv".format(mode), index=False, encoding="utf8")
 
 
 def train(model, config):
@@ -285,12 +439,8 @@ def train(model, config):
 
     model.train(dataset_train, dataset_valid,
                 learning_rate=config.LEARNING_RATE,
-                epochs=config.EPOCHS,
+                epochs=1,
                 layers='heads')
-
-
-def test(model, images_path, outputs_path):
-    model.inference(images_path, outputs_path)
 
 
 if __name__ == "__main__":
@@ -348,56 +498,13 @@ if __name__ == "__main__":
 
 
         config = InferenceConfig()
-    config.display()
-    # model_dir = './mask_rcnn_deepfashion2_0001.h5'
-    # main_match(mode="training",config=config, model_dir=model_dir)
+    # config.display()
+    from tools.data_utils import find_last
 
-    # Create model
-    if args.command == "train":
-        model = MaskRCNN(mode="training", config=config,
-                         model_dir=args.logs)
+    model_dir = find_last()
+    if args.command == 'train':
+        main_match_train(mode=args.command, config=config, model_dir=model_dir)
+    elif args.command == 'test':
+        main_match_test(mode=args.command, config=config, model_dir=model_dir)
     else:
-        model = MaskRCNN(mode="inference", config=config,
-                         model_dir=args.logs)
-
-    # Select weights file to load
-    if args.weights.lower() == "coco":
-        weights_path = COCO_WEIGHTS_PATH
-        # Download weights file
-        if not os.path.exists(weights_path):
-            utils.download_trained_weights(weights_path)
-    elif args.weights.lower() == "last":
-        # Find last trained weights
-        weights_path = model.find_last()
-    elif args.weights.lower() == "imagenet":
-        # Start from ImageNet trained weights
-        weights_path = model.get_imagenet_weights()
-    else:
-        weights_path = args.weights
-
-    # Load weights
-    print("Loading weights ", weights_path)
-    if args.weights.lower() == "coco":
-        # Exclude the last layers because they require a matching
-        # number of classes
-        model.load_weights(weights_path, by_name=True, exclude=[
-            "mrcnn_class_logits", "mrcnn_bbox_fc",
-            "mrcnn_bbox", "mrcnn_mask"])
-    elif args.weights:
-        model.load_weights(weights_path, by_name=True)
-
-    # Train or evaluate
-    if args.command == "train":
-        train(model, config)
-
-    elif args.command == "test":
-        # test(model, constant.valid_img_dir, constant.test_video_frame_annos_path)
-        if not os.path.exists(constant.test_image_frame_annos_path):
-            print('image_inference')
-            test(model, constant.test_image_path, constant.test_image_frame_annos_path)
-        if not os.path.exists(constant.test_video_frame_annos_path):
-            print('video_inference')
-            test(model, constant.test_video_path_head, constant.test_video_frame_annos_path)
-    else:
-        print("'{}' is not recognized. "
-              "Use 'train' or 'splash'".format(args.command))
+        raise Exception('args command error!')

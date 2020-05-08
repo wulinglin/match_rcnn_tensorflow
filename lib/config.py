@@ -9,6 +9,8 @@ Written by Waleed Abdulla
 
 import numpy as np
 
+BATCH_SIZE = 2
+
 
 # Base Configuration Class
 # Don't use this class directly. Instead, sub-class it and override
@@ -40,12 +42,16 @@ class Config(object):
     # Validation stats are also calculated at each epoch end and they
     # might take a while, so don't set this too small to avoid spending
     # a lot of time on validation stats.
-    STEPS_PER_EPOCH = 3000
-    EPOCHS = 5
+
+    STEPS_PER_EPOCH = 1000 # todo 20000
+    EPOCHS = 4
+    # STEPS_PER_EPOCH = 1
+    # EPOCHS = 1
+
     # Number of validation steps to run at the end of every training epoch.
     # A bigger number improves accuracy of validation stats, but slows
     # down the training.
-    VALIDATION_STEPS = 50
+    VALIDATION_STEPS = 5
 
 
 
@@ -171,7 +177,7 @@ class Config(object):
 
     # Minimum probability value to accept a detected instance
     # ROIs below this threshold are skipped
-    DETECTION_MIN_CONFIDENCE = 0.7
+    DETECTION_MIN_CONFIDENCE = 0.4
 
     # Non-maximum suppression threshold for detection
     DETECTION_NMS_THRESHOLD = 0.3

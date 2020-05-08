@@ -14,6 +14,8 @@ import math
 import random
 import numpy as np
 import tensorflow as tf
+
+
 import scipy
 import skimage.color
 import skimage.io
@@ -363,8 +365,15 @@ class Dataset(object):
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
         """
+        #print('------')
+        print(len(self.image_info))
+        print(image_id)
+        image_path = self.image_info[image_id]['path']
+        item_id = image_path.split('/')[-2]
+        if len(item_id)!=6:
+            image_path=image_path.replace(item_id, item_id[-6:])
         # Load image
-        image = skimage.io.imread(self.image_info[image_id]['path'])
+        image = skimage.io.imread(image_path)
         # If grayscale. Convert to RGB for consistency.
         if image.ndim != 3:
             image = skimage.color.gray2rgb(image)
