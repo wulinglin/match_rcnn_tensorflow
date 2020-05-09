@@ -36,7 +36,7 @@ for i in range(1, 7):
     print('tranfer to  deepfashion')
 
     # 转换成coco数据集
-    live2coco_main(video_path_head, video_annos_path_head, annos_save_path, path_head)
+    live2coco_main(video_path_head, video_annos_path_head, annos_save_path, path_head_save)
     print('tranfer to  coco')
 
 for i in range(1, 5):
@@ -65,7 +65,7 @@ for i in range(1, 5):
     print('tranfer to  deepfashion')
 
     # 转换成coco数据集
-    live2coco_main(video_path_head, video_annos_path_head, annos_save_path, path_head)
+    live2coco_main(video_path_head, video_annos_path_head, annos_save_path, path_head_save)
     print('tranfer to  coco')
 
 for i in range(5, 7):

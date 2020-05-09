@@ -10,7 +10,7 @@ from PIL import Image
 from tools.live2deepfashion import class_dict
 
 
-def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_head):
+def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_head_save):
     dataset = {
         "info": {},
         "licenses": [],
@@ -146,6 +146,6 @@ def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_he
                             'segmentation': [],
                         })
 
-    json_name = path_head + 'train.json'
+    json_name = path_head_save + 'train.json'
     with open(json_name, 'w') as f:
         json.dump(dataset, f)
