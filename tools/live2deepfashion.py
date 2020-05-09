@@ -2,12 +2,6 @@ import collections
 import json
 import os
 
-from constant import video_path_head, video_annos_path_head, annos_save_path, image_path_head, \
-    image_annos_path_head
-
-if not os.path.exists(annos_save_path):
-    os.makedirs(annos_save_path)
-
 class_dict = collections.OrderedDict({
     '短外套': 1,
     '古风': 2, '古装': 2,
@@ -41,7 +35,9 @@ def process_cat(cat):
     return cat
 
 
-def image_data_prepare():
+def image_data_prepare(image_path_head, image_annos_path_head, annos_save_path):
+    if not os.path.exists(annos_save_path):
+        os.makedirs(annos_save_path)
     m, n = 0, 0
     for item_id in os.listdir(image_path_head):
         m += 1
@@ -76,7 +72,9 @@ def image_data_prepare():
     print('总条数', m, '有效条数', n)
 
 
-def video_data_prepare():
+def video_data_prepare(video_path_head, video_annos_path_head, annos_save_path):
+    if not os.path.exists(annos_save_path):
+        os.makedirs(annos_save_path)
     m, n = 0, 0
     for item_id in os.listdir(video_path_head):
         m += 1

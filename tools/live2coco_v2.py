@@ -6,11 +6,11 @@ import os
 import numpy as np
 from PIL import Image
 
-from constant import video_path_head, video_annos_path_head, annos_save_path, path_head
+# from constant import video_path_head, video_annos_path_head, annos_save_path, path_head
 from tools.live2deepfashion import class_dict
 
 
-def live2coco_main():
+def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_head):
     dataset = {
         "info": {},
         "licenses": [],

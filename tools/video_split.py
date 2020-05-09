@@ -37,11 +37,9 @@ def video_split_and_save(data_dir, save_dir):
     start_time = time.time()
     count = 0
     for parents, dirs, filenames in os.walk(data_dir):
-        print(parents, dirs, filenames)
         # if parents == DATA_DIR:
         #     continue
 
-        print("正在处理文件夹", parents)
         # path = parents.replace("/", "//")
         path = parents
         f = parents.split("/")[1]
@@ -53,10 +51,36 @@ def video_split_and_save(data_dir, save_dir):
              #   break
             file_name = file.split(".")[0]
             save_path_ = save_path + "/" + file_name
-            if not os.path.isdir(save_path_):
+            if not os.path.exists(save_path_):
                 os.makedirs(save_path_)
             video_path = path + "/" + file
             video_split(video_path, save_path_)
+    end_time = time.time()
+    print("Cost time", start_time - end_time)
+
+
+def video_split_and_save_multiprocess(data_dir, save_dir):
+    import multiprocessing
+    import time
+    start_time = time.time()
+    pool = multiprocessing.Pool(processes=5)  # 创建5个进程
+
+    for parents, dirs, filenames in os.walk(data_dir):
+        path = parents
+        f = parents.split("/")[1]
+        save_path = save_dir + "/"
+        # 对每视频数据进行遍历
+        for file in filenames:
+            file_name = file.split(".")[0]
+            save_path_ = save_path + "/" + file_name
+            if not os.path.exists(save_path_):
+                os.makedirs(save_path_)
+            video_path = path + "/" + file
+            pool.apply_async(video_split, (video_path, save_path_))
+        print('test')
+        pool.close()  # 关闭进程池，表示不能在往进程池中添加进程
+        pool.join()  # 等待进程池中的所有进程执行完毕，必须在close()之后调用
+        print("Sub-process all done.")
 
     end_time = time.time()
     print("Cost time", start_time - end_time)
