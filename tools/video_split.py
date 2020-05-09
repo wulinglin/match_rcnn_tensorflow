@@ -77,9 +77,8 @@ def video_split_and_save_multiprocess(data_dir, save_dir):
                 os.makedirs(save_path_)
             video_path = path + "/" + file
             pool.apply_async(video_split, (video_path, save_path_))
-        print('test')
-        pool.close()  # 关闭进程池，表示不能在往进程池中添加进程
-        pool.join()  # 等待进程池中的所有进程执行完毕，必须在close()之后调用
+        pool.close()
+        pool.join()
         print("Sub-process all done.")
 
     end_time = time.time()

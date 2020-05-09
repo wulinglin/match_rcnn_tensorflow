@@ -312,8 +312,6 @@ def main_match_train(mode, config, model_dir=None):
         rcnn_model.save_dataset(image_1, p1_feature_path, p1_name)
 
         image_2 = load_image_gt_v2(p2, config)
-
-        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
         rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
 
 

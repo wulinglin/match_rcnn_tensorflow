@@ -5,8 +5,8 @@
 # path_head_save = '/data/wl_data/live_data/train_dataset_part1/'
 # path_head = '/home/hzn/match-rcnn/train_dataset_part1/'
 # path_head_save = '/home/hzn/match-rcnn/train_dataset_part1/'
-path_head = '/tcdata/train_dataset_part1/'
-path_head_save = '/tcdata/train_dataset_part1/'
+path_head = '/tcdata_train/train_dataset_part1/'
+path_head_save = '/tcdata_train/train_dataset_part1/'
 
 image_path_head = path_head + 'image/'
 image_annos_path_head = path_head + 'image_annotation/'
@@ -22,8 +22,8 @@ train_json_path = path_head_save + "train.json"
 valid_img_dir = path_head_save + "video_cut"
 valid_json_path = path_head_save + "train.json"
 
-test_path_head = '/tcdata/test_dataset_3w/'
-test_path_head_save = '/myspace/test_dataset_3w/'
+test_path_head = '/tcdata/test_dataset_part5/'
+test_path_head_save = '/myspace/test_dataset_part5/'
 
 # test_path_head = '../live_demo_test/'
 test_video_path_raw = test_path_head + 'video/'
