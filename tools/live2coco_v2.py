@@ -7,10 +7,10 @@ import numpy as np
 from PIL import Image
 
 # from constant import video_path_head, video_annos_path_head, annos_save_path, path_head
-from tools.live2deepfashion import class_dict
+from constant import class_dict
 
 
-def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_head_save):
+def live2coco_main(video_path_head, video_annos_path_head, annos_save_path, path_head_save):
     dataset = {
         "info": {},
         "licenses": [],
@@ -91,17 +91,25 @@ def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_he
         cv2.destroyAllWindows()
 
     num = -1
+    m = 0
     for p in os.listdir(annos_save_path):
-        print(p)
         num += 1
         json_name = annos_save_path + p
         item_id = p.strip('.json')
-        image_name = image_path_head + '{}/0.jpg'.format(item_id) if len(
-            item_id) == 6 else video_path_head + '{}/0.jpg'.format(item_id[-6:])
+        # image_name = image_path_head + '{}/0.jpg'.format(item_id) if len(
+        #     item_id) == 6 else video_path_head + '{}/0.jpg'.format(item_id[-6:])
+        image_name = video_path_head + '{}/0.jpg'.format(item_id) if len(
+            item_id) == 6 else image_path_head + '{}/0.jpg'.format(item_id[-6:])
+        if not os.path.exists(image_name):
+            m += 1
+            # print(m, '{} does not exists! '.format(image_name))
+            continue
         if True:
             imag = Image.open(image_name)
             width, height = imag.size
             with open(json_name, 'r') as f:
+                print(json_name)
+
                 temp = json.loads(f.read())
                 pair_id = temp['pair_id']
 
@@ -115,7 +123,6 @@ def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_he
                     'width': width,
                     'height': height
                 })
-                print(len(dataset['images']))
                 for i in temp:
                     if i == 'source' or i == 'pair_id':
                         continue
@@ -145,7 +152,7 @@ def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_he
                             'keypoints': points.tolist(),
                             'segmentation': [],
                         })
-
+    print(m,'does not exists.')
     json_name = path_head_save + 'train.json'
     with open(json_name, 'w') as f:
         json.dump(dataset, f)

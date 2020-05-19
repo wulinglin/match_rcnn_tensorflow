@@ -7,7 +7,7 @@ python3 main_data_process.py
 ## 1.训练数据（因为选的last所以需要丢一个训练好的模型继续训练）
 # python3 main.py --command train --weights last
 ## 2.测试数据
-#python3 main.py --command test --weights last
+python3 main.py --command test --weights last
 #
 ##（四）以下是match模型：根据video匹配商品库图片
 ### 1.训练数据特征构造

@@ -1,32 +1,7 @@
-import collections
 import json
 import os
 
-class_dict = collections.OrderedDict({
-    '短外套': 1,
-    '古风': 2, '古装': 2,
-    '短裤': 3,
-    '短袖上衣': 4, '短袖Top': 4,
-    '长半身裙': 5,
-    '背带裤': 6,
-    '长袖上衣': 7, '长袖Top': 7,
-    '长袖连衣裙': 8,
-    '短马甲': 9,
-    '短裙': 10,
-    '背心上衣': 11,
-    '短袖连衣裙': 12,
-    '长袖衬衫': 13,
-    '中等半身裙': 14,
-    '无袖上衣': 15,
-    '长外套': 16, '长款外套': 16,
-    '无袖连衣裙': 17,
-    '连体衣': 18,
-    '长马甲': 19,
-    '长裤': 20,
-    '吊带上衣': 21,
-    '中裤': 22,
-    '短袖衬衫': 23,
-})
+import constant
 
 
 def process_cat(cat):
@@ -51,7 +26,7 @@ def image_data_prepare(image_path_head, image_annos_path_head, annos_save_path):
             if len(temp['annotations']) > 0:  # todo 为0怎么办
                 n += 1
                 cat = process_cat(temp['annotations'][0]['label'])
-                cat_id = class_dict[cat]
+                cat_id = constant.class_dict[cat]
                 temp_dict = {"source": "shop",
                              "pair_id": int(item_id.lstrip('0')),
                              "item1": {
@@ -89,7 +64,7 @@ def video_data_prepare(video_path_head, video_annos_path_head, annos_save_path):
             if len(temp['annotations']) > 0:  # todo 为0怎么办
                 n += 1
                 cat = process_cat(temp['annotations'][0]['label'])
-                cat_id = class_dict[cat]
+                cat_id = constant.class_dict[cat]
                 temp_dict = {"source": "user",
                              "pair_id": int(item_id.lstrip('0')),
                              "item1": {
