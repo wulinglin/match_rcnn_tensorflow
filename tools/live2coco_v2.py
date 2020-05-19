@@ -92,12 +92,11 @@ def live2coco_main(video_path_head,video_annos_path_head,annos_save_path,path_he
 
     num = -1
     for p in os.listdir(annos_save_path):
-        print(p)
         num += 1
         json_name = annos_save_path + p
         item_id = p.strip('.json')
-        image_name = image_path_head + '{}/0.jpg'.format(item_id) if len(
-            item_id) == 6 else video_path_head + '{}/0.jpg'.format(item_id[-6:])
+        image_name = video_path_head + '{}/0.jpg'.format(item_id) if len(
+            item_id) == 6 else image_path_head + '{}/0.jpg'.format(item_id[-6:])
         if True:
             imag = Image.open(image_name)
             width, height = imag.size
