@@ -4,6 +4,17 @@ import skimage
 
 import constant
 from constant import video_path_head, image_path_head
+import pandas as pd
+import json
+
+pd.set_option('expand_frame_repr', False)
+pd.set_option("display.max_rows", 100)
+
+
+def get_annos_content(path):
+    with open(path, 'r+') as fp:
+        content = json.load(fp)
+    return content
 
 
 def get_mn_image_pair():
