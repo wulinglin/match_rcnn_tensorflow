@@ -98,32 +98,36 @@ def hog(img, cell_x, cell_y, cell_w):
             feature.append(tmp.flatten())
     return np.array(feature).flatten()
 
+def get_hog_feauture_by_path(image_name_path, box):
+    size = (128, 64)
+    img = cv2.imread(image_name_path, cv2.IMREAD_GRAYSCALE)
+    if (img is None):
+        print('Not read image.')
+        return
+    y1, x1, y2, x2 = box[0], box[1], box[2], box[3]  # 跟官方不一致哎
+    img = img[x1:x2, y1:y2]
+    try:
+        resizeimg = cv2.resize(img, size, interpolation=cv2.INTER_CUBIC)
+    except Exception:
+        print('error img resize', image_name_path, img)
+        return
+    cell_w = 8
+    cell_x = int(resizeimg.shape[0] / cell_w)  # cell行数
+    cell_y = int(resizeimg.shape[1] / cell_w)  # cell列数
+    gammaimg = gamma(resizeimg) * 255
+    feature = hog(gammaimg, cell_x, cell_y, cell_w)
+    return feature
+
 
 def save_hog_feature(df_list, test_cos_image_feature_path, test_cos_frame_feature_path):
     image_h5_file = h5py.File(test_cos_image_feature_path, 'w')
     video_h5_file = h5py.File(test_cos_frame_feature_path, 'w')
 
     for each in df_list:
-        size = (128, 64)
         image_name_path = each['path']
         class_dict_index = each['class']
         box = each['box']
-        img = cv2.imread(image_name_path, cv2.IMREAD_GRAYSCALE)
-        if (img is None):
-            print('Not read image.')
-            continue
-        y1, x1, y2, x2 = box[0], box[1], box[2], box[3]  # 跟官方不一致哎
-        img = img[x1:x2, y1:y2]
-        try:
-            resizeimg = cv2.resize(img, size, interpolation=cv2.INTER_CUBIC)
-        except Exception:
-            print('error img resize', each, img)
-            continue
-        cell_w = 8
-        cell_x = int(resizeimg.shape[0] / cell_w)  # cell行数
-        cell_y = int(resizeimg.shape[1] / cell_w)  # cell列数
-        gammaimg = gamma(resizeimg) * 255
-        feature = hog(gammaimg, cell_x, cell_y, cell_w)
+        feature = get_hog_feauture_by_path(image_name_path, box)
         # print(feature.shape, image_name_path)
 
         index = image_name_path.split('/')[-2]
@@ -134,6 +138,54 @@ def save_hog_feature(df_list, test_cos_image_feature_path, test_cos_frame_featur
             image_h5_file.create_dataset(index, data=feature)
     video_h5_file.close()
     image_h5_file.close()
+
+def save_cascade_hog_feature(df_list, test_cos_image_feature_path, test_cos_frame_feature_path):
+    image_h5_file = h5py.File(test_cos_image_feature_path, 'w')
+    video_h5_file = h5py.File(test_cos_frame_feature_path, 'w')
+
+    for each in df_list:
+        image_name_path = each['path']
+        class_dict_index = each['class']
+        box = each['box']
+        feature = get_hog_feauture_by_path(image_name_path, box)
+        # print(feature.shape, image_name_path)
+
+        index = image_name_path.split('/')[-2]
+        img_or_video = image_name_path.split('/')[-3]
+        if img_or_video == 'video_cut':
+            video_h5_file.create_dataset(index, data=feature)
+        else:
+            image_h5_file.create_dataset(index, data=feature)
+    video_h5_file.close()
+    image_h5_file.close()
+
+
+def save_rcca_hog_feature(df_list, test_cos_image_feature_path, test_cos_frame_feature_path):
+    image_h5_file = h5py.File(test_cos_image_feature_path, 'w')
+    video_h5_file = h5py.File(test_cos_frame_feature_path, 'w')
+
+    for each in df_list:
+
+        for each_img in each['image']:
+            image_name_path = each['path']
+            class_dict_index = each['class']
+            box = each['box']
+            feature = get_hog_feauture_by_path(image_name_path, box)
+
+        for each_video in each['video']:
+            pass # todo
+
+        # print(feature.shape, image_name_path)
+
+        index = image_name_path.split('/')[-2]
+        img_or_video = image_name_path.split('/')[-3]
+        if img_or_video == 'video_cut':
+            video_h5_file.create_dataset(index, data=feature)
+        else:
+            image_h5_file.create_dataset(index, data=feature)
+    video_h5_file.close()
+    image_h5_file.close()
+
 
 # if __name__ == '__main__':
 # img = cv2.imread('./data/basketball1.png', cv2.IMREAD_GRAYSCALE)

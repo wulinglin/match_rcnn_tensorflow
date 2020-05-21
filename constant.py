@@ -99,5 +99,4 @@ class_dict_rare = collections.OrderedDict({
     '长马甲': 19,
     '短马甲': 9,
     '古风': 2, '古装': 2,
-
 })
