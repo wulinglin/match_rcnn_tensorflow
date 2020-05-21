@@ -1,475 +1,171 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jul 21 21:15:50 2019
-
-@author: loktarxiao
-"""
-
-import sys
-import json
-import h5py
-
-import constant
-from lib.get_rcnn_feature_nopair import Get_RCNN_Feature
-from lib.get_rcnn_cos_feature import Get_Cos_Feature
-from lib.model_new import load_image_gt_v2
-from tools.data_utils import get_mn_test_image_pair
-
-##from lib.model_mn_v2 import MatchRCNN
-
-sys.dont_write_bytecode = True
-
 import os
-import numpy as np
+import h5py
+import cv2
+import time
+import constant
+import tensorflow as tf
 
-from pycocotools.coco import COCO
-from pycocotools import mask as maskUtils
-from lib.config import Config
-from lib import utils
-import pandas as pd
-
-
-class DeepFashion2Config(Config):
-    """Configuration for training on DeepFashion2.
-    Derives from the base Config class and overrides values specific
-    to the DeepFashion2 dataset.
-    """
-    # Give the configuration a recognizable name
-    NAME = "deepfashion2"
-
-    # We use a GPU with 12GB memory, which can fit two images.
-    # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 1
-
-    # Uncomment to train on 8 GPUs (default is 1)
-    GPU_COUNT = 1
-
-    # Number of classes (including background)
-    NUM_CLASSES = 1 + 23  # COCO has 80 classes
-
-    USE_MINI_MASK = True
-
-    train_img_dir = constant.train_img_dir
-    train_json_path = constant.train_json_path
-    valid_img_dir = constant.valid_img_dir
-    valid_json_path = constant.valid_json_path
+from data.io.image_preprocess import short_side_resize_for_inference_data
+from libs.configs import cfgs
+from libs.networks import build_whole_network
+from libs.box_utils import draw_box_in_img
+from help_utils import tools
 
 
-############################################################
-#  Dataset
-############################################################
+def detect(sess, real_test_imgname_list, h5_file, flatten_feature, img_batch, img_plac):
+    # 1. preprocess img
 
-class DeepFashion2Dataset(utils.Dataset):
-    def load_coco(self, image_dir, json_path, class_ids=None,
-                  class_map=None, return_coco=False):
-        """Load the DeepFashion2 dataset.
-        """
-        print(json_path)
-        coco = COCO(json_path)
+    for i, a_img_name in enumerate(real_test_imgname_list):
 
-        # Load all classes or a subset?
-        if not class_ids:
-            # All classes
-            class_ids = sorted(coco.getCatIds())
-
-        # All images or a subset?
-        if class_ids:
-            image_ids = []
-            for id in class_ids:
-                image_ids.extend(list(coco.getImgIds(catIds=[id])))
-            # Remove duplicates
-            image_ids = list(set(image_ids))
-        else:
-            # All images
-            image_ids = list(coco.imgs.keys())
-
-        # Add classes
-        for i in class_ids:
-            self.add_class("deepfashion2", i, coco.loadCats(i)[0]["name"])
-
-        # Add images
-        for i in image_ids:
-            self.add_image(
-                "deepfashion2", image_id=i,
-                path=os.path.join(image_dir, coco.imgs[i]['file_name']),
-                width=coco.imgs[i]["width"],
-                height=coco.imgs[i]["height"],
-                annotations=coco.loadAnns(coco.getAnnIds(
-                    imgIds=[i], catIds=class_ids, iscrowd=None)))
-        # todo 为什么这里可以，而下面train_dataset不能.dataset看数据，那么要怎么看数据
-        # print(coco.dataset.keys())
-        # print(len(coco.dataset['images']), coco.dataset['images'][:2])
-        # print(len(coco.dataset['annotations']), coco.dataset['annotations'][:1])
-        # print(len(coco.dataset['categories']), coco.dataset['categories'][:1])
-
-        if return_coco:
-            return coco
-
-    def load_keypoint(self, image_id):
-        """
-        """
-        image_info = self.image_info[image_id]
-        if image_info["source"] != "deepfashion2":
-            return super(DeepFashion2Dataset, self).load_mask(image_id)
-
-        instance_keypoints = []
-        class_ids = []
-        annotations = self.image_info[image_id]["annotations"]
-
-        for annotation in annotations:
-            class_id = self.map_source_class_id(
-                "deepfashion2.{}".format(annotation['category_id']))
-            if class_id:
-                keypoint = annotation['keypoints']
-
-                instance_keypoints.append(keypoint)
-                class_ids.append(class_id)
-
-        keypoints = np.stack(instance_keypoints, axis=1)
-        class_ids = np.array(class_ids, dtype=np.int32)
-        return keypoints, class_ids
-
-    def load_bbox(self, image_id):
-        """Load instance masks for the given image.
-        Different datasets use different ways to store masks. This
-        function converts the different mask format to one format
-        in the form of a bitmap [height, width, instances].
-        Returns:
-        masks: A bool array of shape [height, width, instance count] with
-            one mask per instance.
-        class_ids: a 1D array of class IDs of the instance masks.
-        """
-        # If not a COCO image, delegate to parent class.
-        image_info = self.image_info[image_id]
-        # if image_info["source"] != "deepfashion2":
-        #     return super(DeepFashion2Dataset, self).load_mask(image_id)
-
-        bbox_list = []
-        class_ids = []
-        annotations = self.image_info[image_id]["annotations"]
-        # Build mask of shape [height, width, instance_count] and list
-        # of class IDs that correspond to each channel of the mask.
-        for annotation in annotations:
-            class_id = self.map_source_class_id(
-                "deepfashion2.{}".format(annotation['category_id']))
-            if class_id:
-                bbox = annotation['bbox']
-
-                bbox_list.append(bbox)
-                class_ids.append(class_id)
-
-        # Pack instance masks into an array
-        # if class_ids:
-        # mask = np.stack(instance_masks, axis=2).astype(np.bool)
-        bbox_array = np.array(bbox_list, dtype=np.int32)
-        class_ids = np.array(class_ids, dtype=np.int32)
-        return class_ids, bbox_array
-        # else:
-        #     # Call super class to return an empty mask
-        #     return super(DeepFashion2Dataset, self).load_mask(image_id)
-
-    def load_mask(self, image_id):
-        """Load instance masks for the given image.
-        Different datasets use different ways to store masks. This
-        function converts the different mask format to one format
-        in the form of a bitmap [height, width, instances].
-        Returns:
-        masks: A bool array of shape [height, width, instance count] with
-            one mask per instance.
-        class_ids: a 1D array of class IDs of the instance masks.
-        """
-        # If not a COCO image, delegate to parent class.
-        image_info = self.image_info[image_id]
-        if image_info["source"] != "deepfashion2":
-            return super(DeepFashion2Dataset, self).load_mask(image_id)
-
-        instance_masks = []
-        class_ids = []
-        annotations = self.image_info[image_id]["annotations"]
-        # Build mask of shape [height, width, instance_count] and list
-        # of class IDs that correspond to each channel of the mask.
-        for annotation in annotations:
-            class_id = self.map_source_class_id(
-                "deepfashion2.{}".format(annotation['category_id']))
-            if class_id:
-                m = self.annToMask(annotation, image_info["height"],
-                                   image_info["width"])
-                # Some objects are so small that they're less than 1 pixel area
-                # and end up rounded out. Skip those objects.
-                if m.max() < 1:
-                    continue
-                # Is it a crowd? If so, use a negative class ID.
-                if annotation['iscrowd']:
-                    # Use negative class ID for crowds
-                    class_id *= -1
-                    # For crowd masks, annToMask() sometimes returns a mask
-                    # smaller than the given dimensions. If so, resize it.
-                    if m.shape[0] != image_info["height"] or m.shape[1] != image_info["width"]:
-                        m = np.ones([image_info["height"], image_info["width"]], dtype=bool)
-                instance_masks.append(m)
-                class_ids.append(class_id)
-
-        # Pack instance masks into an array
-        if class_ids:
-            mask = np.stack(instance_masks, axis=2).astype(np.bool)
-            class_ids = np.array(class_ids, dtype=np.int32)
-            return class_ids
-        else:
-            # Call super class to return an empty mask
-            return super(DeepFashion2Dataset, self).load_mask(image_id)
-
-    def image_reference(self, image_id):
-        """Return a link to the image in the COCO Website."""
-        super(DeepFashion2Dataset, self).image_reference(image_id)
-
-    # The following two functions are from pycocotools with a few changes.
-
-    def annToRLE(self, ann, height, width):
-        """
-        Convert annotation which can be polygons, uncompressed RLE to RLE.
-        :return: binary mask (numpy 2D array)
-        """
-        segm = ann['segmentation']
-        if isinstance(segm, list):
-            # polygon -- a single object might consist of multiple parts
-            # we merge all parts into one mask rle code
-            rles = maskUtils.frPyObjects(segm, height, width)
-            rle = maskUtils.merge(rles)
-        elif isinstance(segm['counts'], list):
-            # uncompressed RLE
-            rle = maskUtils.frPyObjects(segm, height, width)
-        else:
-            # rle
-            rle = ann['segmentation']
-        return rle
-
-    def annToMask(self, ann, height, width):
-        """
-        Convert annotation which can be polygons, uncompressed RLE, or RLE to binary mask.
-        :return: binary mask (numpy 2D array)
-        """
-        rle = self.annToRLE(ann, height, width)
-        m = maskUtils.decode(rle)
-        return m
+        raw_img = cv2.imread(a_img_name + '/0.jpg')
+        resized_img, flatten_feature_result = \
+            sess.run(
+                [img_batch, flatten_feature],
+                feed_dict={img_plac: raw_img[:, :, ::-1]}  # cv is BGR. But need RGB
+            )
+        h5_file[a_img_name] = flatten_feature_result[0]
 
 
-def main_match_train(mode, config, model_dir=None):
-    from tools.data_utils import get_mn_image_pair
-    #
-    # dataset_train = DeepFashion2Dataset()
-    # dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    # dataset_train.prepare()
+def get_mn_test_image_pair():
+    test_video_path_head, test_image_path=constant.test_video_path_head, constant.test_image_path
+    test_video_path_list, test_img_path_list = [],[]
+    for video_path in os.listdir(test_video_path_head):
+        video_path_ = test_video_path_head + video_path + '/' + '0.jpg'
 
-    img_path_list, label_list = get_mn_image_pair()
-
-    # rcnn_model = Get_RCNN_Feature(mode, config, model_dir)
-    rcnn_model = Get_Cos_Feature(mode, config, model_dir)
-
-    raw_img_path = []
-    img_feature_path = []
-    img_name = []
-
-    raw_video_frame_path = []
-    video_feature_path = []
-    video_frame_name = []
-    label_all = []
-    count = 0
-    # raw_video_frame_path,video_feature_path,video_frame_name,raw_img_path,img_feature_path,img_name,label
-    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000002/0.jpg,train_data_feature/image_feature/000002,0.jpg,1
-    # ../Live_demo_20200117/video_cut/000001/0.jpg,train_data_feature/video_feature/000001,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,1
-    # ../Live_demo_20200117/video_cut/000002/0.jpg,train_data_feature/video_feature/000002,0.jpg,../Live_demo_20200117/image/000001/0.jpg,train_data_feature/image_feature/000001,0.jpg,0
-    for p1, p2 in img_path_list:
-        raw_video_frame_path.append(p1)
-        p1_video_path = p1.split("/")[-2]
-        p1_frame_name = p1.split("/")[-1]
-        video_frame_name.append(p1_frame_name)
-        video_feature_path.append(
-            constant.path_head_save + "{}_data_feature/video_feature/".format(mode) + p1_video_path)
-
-        raw_img_path.append(p2)
-        p2_image_path = p2.split("/")[-2]
-        p2_image_name = p2.split("/")[-1]
-        img_name.append(p2_image_name)
-        img_feature_path.append(constant.path_head_save + "{}_data_feature/image_feature/".format(mode) + p2_image_path)
-        if mode not in ['inference', 'test', 'predict']:
-            label_all.append(label_list[count])
-        count += 1
-        if count % 10 == 0:
-            print('1111 match train', count)
-
-    df_info = pd.DataFrame({"raw_video_frame_path": raw_video_frame_path, "video_feature_path": video_feature_path,
-                            "video_frame_name": video_frame_name, \
-                            "raw_img_path": raw_img_path, "img_feature_path": img_feature_path, "img_name": img_name,
-                            "label": label_all})
-    df_info.to_csv("pair_data_info_{}.csv".format(mode), index=False, encoding="utf8")
-
-    count = 0
-    for p1, p1_feature_path, p1_name, p2, p2_feature_path, p2_name in zip(raw_video_frame_path, video_feature_path,
-                                                                          video_frame_name, \
-                                                                          raw_img_path, img_feature_path, img_name):
-
-        count += 1
-        if count % 10 == 0:
-            print('2222 match train', count)
-
-        image_1 = load_image_gt_v2(p1, config)
-        rcnn_model.save_dataset(image_1, p1_feature_path, p1_name)
-
-        image_2 = load_image_gt_v2(p2, config)
-        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
+        test_video_path_list.append(video_path_)
+    for img_path in os.listdir(test_image_path):
+        image_path_ = test_image_path + img_path + '/' + '0.jpg'
+        test_img_path_list.append(image_path_)
+    return test_video_path_list,test_img_path_list
 
 
-def main_match_test(mode, config, model_dir=None):
+def pca(x, dim=2):
+    '''
+        x:输入矩阵
+        dim:降维之后的维度数
+    '''
+    with tf.name_scope("PCA"):
+
+        m,n= tf.to_float(x.shape[0]),tf.to_int32(x.shape[1])
+        assert not tf.assert_less(dim,n)
+        mean = tf.reduce_mean(x,axis=1)
+        # 去中心化
+        x_new = x - tf.reshape(mean,(-1,1))
+        # 无偏差的协方差矩阵
+        cov = tf.matmul(x_new,x_new,transpose_a=True)/(m - 1)
+        # 计算特征分解
+        e,v = tf.linalg.eigh(cov,name="eigh")
+        # 将特征值从大到小排序，选出前dim个的index
+        e_index_sort = tf.math.top_k(e,sorted=True,k=dim)[1]
+        # 提取前排序后dim个特征向量
+        v_new = tf.gather(v,indices=e_index_sort)
+        # 降维操作
+        pca = tf.matmul(x_new,v_new,transpose_b=True)
+    return pca
+
+
+def main_match_test():
 
     test_video_path_list, test_img_path_list = get_mn_test_image_pair()
 
     test_video_path_list, test_img_path_list = test_video_path_list, test_img_path_list
 
-    rcnn_model = Get_Cos_Feature(mode, config, model_dir)
+    faster_rcnn = build_whole_network.DetectionNetwork(base_network_name=cfgs.NET_NAME,
+                                                       is_training=False)
 
-    count = 0
-    print(len(test_video_path_list))
-    images_list = []
-    feature_index_list = []
-    image_name_list = []
-    # test_video_path_list = test_video_path_list[:100]
-    h5_file = h5py.File(constant.test_cos_frame_feature_path, 'w')
-    for p1 in test_video_path_list:
-        if '.DS_Store' in p1:
-            continue
-        p1_video_path = p1.split("/")[-2]
-        p1_frame_name = p1.split("/")[-1]
+    img_plac = tf.placeholder(dtype=tf.uint8, shape=[None, None, 3])  # is RGB. not GBR
+    img_batch = tf.cast(img_plac, tf.float32)
+    img_batch = short_side_resize_for_inference_data(img_tensor=img_batch,
+                                                     target_shortside_len=cfgs.IMG_SHORT_SIDE_LEN,
+                                                     length_limitation=cfgs.IMG_MAX_LENGTH)
+    img_batch = img_batch - tf.constant(cfgs.PIXEL_MEAN)
+    img_batch = tf.expand_dims(img_batch, axis=0) # [1, None, None, 3]
 
-        image_1 = load_image_gt_v2(p1, config)
-        count += 1
-        if count % 50 == 0:
-            print('3333 match test', count)
-        images_list.append(image_1)
-        feature_index_list.append(p1_video_path)
-        image_name_list.append(p1_frame_name)
+    flatten_feature, _ = faster_rcnn.build_whole_detection_network(
+        input_img_batch=img_batch,
+        gtboxes_batch=None)
+    init_op = tf.group(
+        tf.global_variables_initializer(),
+        tf.local_variables_initializer()
+    )
 
-        if count % 50 == 0 and count > 0:
-            rcnn_model.save_dataset(images_list, feature_index_list, h5_file)
-            images_list = []
-            feature_index_list = []
-            image_name_list = []
-    h5_file.close()
-    # for feature in video_feature_list:
-    #     video_feature_json[feature[0]] = feature[1]
-    # with open('video_feature.json', 'w+') as f:
-    #     json.dump(video_feature_json, f)
-    print('-'*30, len(test_img_path_list))
-    count = 0
-    images_list = []
-    image_name_list = []
-    feature_index_list = []
-    h5_file = h5py.File(constant.test_cos_image_feature_path, 'w')
-    # test_img_path_list = test_img_path_list[:100]
-    for p2 in test_img_path_list:
-        if '.DS_Store' in p2:
-            continue
-        p2_image_path = p2.split("/")[-2]
-        p2_image_name = p2.split("/")[-1]
-        image_2 = load_image_gt_v2(p2, config)
-        images_list.append(image_2)
-        feature_index_list.append(p2_image_path)
-        image_name_list.append(p2_image_name)
+    restorer, restore_ckpt = faster_rcnn.get_restorer()
 
-        count += 1
-        if count % 50 == 0:
-            print('44444 match test', count)
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sess:
+        sess.run(init_op)
+        if not restorer is None:
+            restorer.restore(sess, restore_ckpt)
+            print('restore model')
 
-        if count % 50 == 0 and count > 0:
-            rcnn_model.save_dataset(images_list, feature_index_list, h5_file)
-            images_list = []
-            feature_index_list = []
-            image_name_list = []
-    h5_file.close()
-    # for feature in video_feature_list:
-    #     image_feature_json[feature[0]] = feature[1]
-    # with open('image_feature.json', 'w+') as f:
-    #     json.dump(image_feature_json, f)
+        count = 0
+        print(len(test_video_path_list))
+        feature_index_list = []
+        # test_video_path_list = test_video_path_list[:500]
+        h5_file = h5py.File(constant.test_cos_frame_feature_path, 'w')
+        for p1 in test_video_path_list:
+            if '.DS_Store' in p1:
+                continue
+            p1_video_path = constant.test_video_path_head + p1.split("/")[-2]
 
+            count += 1
+            if count % 50 == 0:
+                print('p1 match test', count)
+            feature_index_list.append(p1_video_path)
 
-def train(model, config):
-    """
-    """
-    dataset_train = DeepFashion2Dataset()
-    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    dataset_train.prepare()
+        for i, a_img_name in enumerate(feature_index_list):
+            raw_img = cv2.imread(a_img_name + '/40.jpg')
+            resized_img, flatten_feature_result = \
+                sess.run(
+                    [img_batch, flatten_feature],
+                    feed_dict={img_plac: raw_img[:, :, ::-1]}  # cv is BGR. But need RGB
+                )
+            print(i)
+            # a = sess.run(pca(flatten_feature_result))
 
-    dataset_valid = DeepFashion2Dataset()
-    dataset_valid.load_coco(config.valid_img_dir, config.valid_json_path)
-    dataset_valid.prepare()
+            h5_file[a_img_name.split('/')[-1]] = flatten_feature_result[0]
 
-    model.train(dataset_train, dataset_valid,
-                learning_rate=config.LEARNING_RATE,
-                epochs=1,
-                layers='heads')
+        # detect(faster_rcnn, feature_index_list, h5_file, flatten_feature, img_batch, img_plac)
 
+        h5_file.close()
+        # for feature in video_feature_list:
+        #     video_feature_json[feature[0]] = feature[1]
+        # with open('video_feature.json', 'w+') as f:
+        #     json.dump(video_feature_json, f)
+        print('-'*30, len(test_img_path_list))
+        count = 0
+        feature_index_list = []
+        h5_file = h5py.File(constant.test_cos_image_feature_path, 'w')
 
-if __name__ == "__main__":
-    ROOT_DIR = os.path.abspath("./")
-    DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
-    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-    COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_deepfashion2_0003.h5")
+        # test_img_path_list = test_img_path_list[:500]
+        for p2 in test_img_path_list:
+            if '.DS_Store' in p2:
+                continue
+            p2_image_path = constant.test_image_path + p2.split("/")[-2]
+            feature_index_list.append(p2_image_path)
 
-    # model_dir = './mask_rcnn_deepfashion2_0001.h5'
+            count += 1
+            if count % 50 == 0:
+                print('p2 match test', count)
 
-    import argparse
+        for i, a_img_name in enumerate(feature_index_list):
+            raw_img = cv2.imread(a_img_name + '/0.jpg')
+            resized_img, flatten_feature_result = \
+                sess.run(
+                    [img_batch, flatten_feature],
+                    feed_dict={img_plac: raw_img[:, :, ::-1]}  # cv is BGR. But need RGB
+                )
+            print(i)
+            h5_file[a_img_name.split('/')[-1]] = flatten_feature_result[0]
 
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(
-        description='Train Match R-CNN for DeepFashion.')
-    parser.add_argument("--command",
-                        metavar="<command>",
-                        help="'train' or 'splash'")
-    parser.add_argument('--weights', required=False,
-                        metavar="/path/to/weights.h5",
-                        help="Path to weights .h5 file or 'coco'")
-    parser.add_argument('--logs', required=False,
-                        default=DEFAULT_LOGS_DIR,
-                        metavar="/path/to/logs/",
-                        help='Logs and checkpoints directory (default=logs/)')
-    parser.add_argument('--image', required=False,
-                        metavar="path or URL to image",
-                        help='Image to apply the color splash effect on')
-    parser.add_argument('--video', required=False,
-                        metavar="path or URL to video",
-                        help='Video to apply the color splash effect on')
-    args = parser.parse_args()
-
-    """
-    # Validate arguments
-    if args.command == "train":
-        assert args.dataset, "Argument --dataset is required for training"
-    elif args.command == "splash":
-        assert args.image or args.video,\
-               "Provide --image or --video to apply color splash"
-    """
-
-    print("Weights: ", args.weights)
-    print("Logs: ", args.logs)
-
-    # Configurations
-    if args.command == "train":
-        config = DeepFashion2Config()
-    else:
-        class InferenceConfig(DeepFashion2Config):
-            # Set batch size to 1 since we'll be running inference on
-            # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-            GPU_COUNT = 1
-            IMAGES_PER_GPU = 1
+        # detect(faster_rcnn, feature_index_list, h5_file, flatten_feature, img_batch, img_plac)
+        h5_file.close()
+        # for feature in video_feature_list:
+        #     image_feature_json[feature[0]] = feature[1]
+        # with open('image_feature.json', 'w+') as f:
+        #     json.dump(image_feature_json, f)
 
 
-        config = InferenceConfig()
-    # config.display()
-    from tools.data_utils import find_last
-
-    model_dir = find_last()
-    if args.command == 'train':
-        main_match_train(mode=args.command, config=config, model_dir=model_dir)
-    elif args.command == 'test':
-        main_match_test(mode=args.command, config=config, model_dir=model_dir)
-    else:
-        raise Exception('args command error!')
+if __name__ is '__main__':
+    main_match_test()
