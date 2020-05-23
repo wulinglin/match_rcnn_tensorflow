@@ -53,9 +53,9 @@ class Get_RCNN_Feature:
                                                                          verbose=0)
 
             ###print("len ", len(output_rois) ) 
-            print("fpn_p5.shape:", fpn_p5.shape)
-            print("output_rois.shape:", output_rois.shape)
-            print("output_rois_score.shape:", output_rois_score.shape)
+            # print("fpn_p5.shape:", fpn_p5.shape)
+            # print("output_rois.shape:", output_rois.shape)
+            # print("output_rois_score.shape:", output_rois_score.shape)
             label_count = output_rois_score.shape[-1]
             label_dict = {}
             for ii in range(1, label_count):  # 因为0是背景类

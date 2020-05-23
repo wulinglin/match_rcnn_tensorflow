@@ -6,28 +6,27 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import os
-import cv2
-import random
 import datetime
-import re
-import math
 import logging
-from collections import OrderedDict
+import math
 import multiprocessing
-import numpy as np
-import tensorflow as tf
-import keras
-import keras.backend as K
-import keras.layers as KL
-import keras.engine as KE
-import keras.models as KM
-
-from lib import utils
-
+import os
+import re
+from collections import OrderedDict
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
-from lib.utils import Dataset
+
+import cv2
+import keras
+import keras.backend as K
+import keras.engine as KE
+import keras.layers as KL
+import keras.models as KM
+import numpy as np
+import skimage
+import tensorflow as tf
+
+from lib import utils
 
 assert LooseVersion(tf.__version__) >= LooseVersion("1.3")
 assert LooseVersion(keras.__version__) >= LooseVersion('2.0.8')
@@ -1205,6 +1204,31 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None):
     return image, image_meta, class_ids, bbox_array
 
 
+def load_image_gt_v2(image_path, config):
+    def load_image(image_path):
+        """Load the specified image and return a [H,W,3] Numpy array.
+        """
+        image = skimage.io.imread(image_path)
+        # If grayscale. Convert to RGB for consistency.
+        if image.ndim != 3:
+            image = skimage.color.gray2rgb(image)
+        # If has an alpha channel, remove it for consistency
+        if image.shape[-1] == 4:
+            image = image[..., :3]
+        return image
+
+    # Load image and mask
+    image = load_image(image_path)
+    image, window, scale, padding, crop = utils.resize_image(
+        image,
+        min_dim=config.IMAGE_MIN_DIM,
+        min_scale=config.IMAGE_MIN_SCALE,
+        max_dim=config.IMAGE_MAX_DIM,
+        mode=config.IMAGE_RESIZE_MODE)
+
+    return image
+
+
 def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, config):
     """Generate targets for training Stage 2 classifier and mask heads.
     This is not used in normal training. It's useful for debugging or to train
@@ -1657,14 +1681,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                         batch_mrcnn_bbox = np.zeros(
                             (batch_size,) + mrcnn_bbox.shape, dtype=mrcnn_bbox.dtype)
 
-
             # If more instances than fits in the array, sub-sample from them.
             if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
                 ids = np.random.choice(
                     np.arange(gt_boxes.shape[0]), config.MAX_GT_INSTANCES, replace=False)
                 gt_class_ids = gt_class_ids[ids]
                 gt_boxes = gt_boxes[ids]
-
 
             # Add to batch
             batch_image_meta[b] = image_meta
@@ -1887,7 +1909,6 @@ class MaskRCNN():
                                      train_bn=config.TRAIN_BN,
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
-
             # TODO: clean up (use tf.identify if necessary)
             output_rois = KL.Lambda(lambda x: x * 1, name="output_rois")(rois)
 
@@ -1900,7 +1921,6 @@ class MaskRCNN():
                 [target_class_ids, mrcnn_class_logits, active_class_ids])
             bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
                 [target_bbox, target_class_ids, mrcnn_bbox])
-
 
             # Model
             inputs = [input_image, input_image_meta,
@@ -1929,7 +1949,6 @@ class MaskRCNN():
 
             # Create masks for detections
             detection_boxes = KL.Lambda(lambda x: x[..., :4])(detections)
-
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
@@ -2256,7 +2275,6 @@ class MaskRCNN():
 
     def test(self, image_path):
         import cv2
-        import numpy as np
         image = cv2.imread(image_path)
 
         result, images = self.detect([image])
@@ -2264,7 +2282,8 @@ class MaskRCNN():
         try:
             top_one_roi = result[0]['rois'][0]
             top_one_class_ids = result[0]['class_ids'][0]
-            image = cv2.rectangle(image, (top_one_roi[1], top_one_roi[0]), (top_one_roi[3], top_one_roi[2]), (0, 255, 0), 5)
+            image = cv2.rectangle(image, (top_one_roi[1], top_one_roi[0]), (top_one_roi[3], top_one_roi[2]),
+                                  (0, 255, 0), 5)
         except Exception as e:
             print(e)
 
@@ -2273,12 +2292,14 @@ class MaskRCNN():
     def inference(self, images_path, outputs_path):
         import json
         dataset = {}
+        count = 0
         for dir_name in os.listdir(images_path):
             if '.DS_Store' in dir_name:
                 continue
-            for image_name in os.listdir(os.path.join(images_path,dir_name)):
+            for image_name in os.listdir(os.path.join(images_path, dir_name)):
                 if '.DS_Store' in image_name:
                     continue
+                count += 1
                 image = cv2.imread(os.path.join(images_path, dir_name, image_name))
                 result, images = self.detect([image])
                 results = []
@@ -2286,11 +2307,12 @@ class MaskRCNN():
                     temp = {'class_id': int(result[0]['class_ids'][id]),
                             'bbox': [int(i) for i in result[0]['rois'][id]]}
                     results.append(temp)
-                dataset[dir_name+'_'+image_name] = {'result': results}
+                dataset[dir_name + '_' + image_name] = {'result': results}
+                if count % 51 == 0:
+                    print('mask inference count=%d' % count)
 
         with open(outputs_path, 'w') as f:
             json.dump(dataset, f)
-
 
     def mold_inputs(self, images):
         """Takes a list of images and modifies them to the format expected
@@ -2424,8 +2446,8 @@ class MaskRCNN():
             log("anchors", anchors)
         # Run object detection
 
-        #[detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, detections_box]
-        detections, classes, bbox, rpn_bbox, _, _, boxes, logits= \
+        # [detections, mrcnn_class, mrcnn_bbox, rpn_rois, rpn_class, rpn_bbox, detections_box]
+        detections, classes, bbox, rpn_bbox, _, _, boxes, logits = \
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
         # Process detections
         results = []

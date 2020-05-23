@@ -9,6 +9,7 @@ import sys
 
 import constant
 from lib.get_rcnn_feature_nopair import Get_RCNN_Feature
+from lib.model_new import load_image_gt_v2
 from tools.data_utils import get_mn_test_image_pair
 
 ##from lib.model_mn_v2 import MatchRCNN
@@ -251,11 +252,10 @@ class DeepFashion2Dataset(utils.Dataset):
 
 def main_match_train(mode, config, model_dir=None):
     from tools.data_utils import get_mn_image_pair
-    from lib.model_new import load_image_gt
-
-    dataset_train = DeepFashion2Dataset()
-    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    dataset_train.prepare()
+    #
+    # dataset_train = DeepFashion2Dataset()
+    # dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    # dataset_train.prepare()
 
     img_path_list, label_list = get_mn_image_pair()
     if mode in []:
@@ -294,6 +294,8 @@ def main_match_train(mode, config, model_dir=None):
         if mode not in ['inference', 'test', 'predict']:
             label_all.append(label_list[count])
         count += 1
+        if count % 10 == 0:
+            print('1111 match train', count)
 
     df_info = pd.DataFrame({"raw_video_frame_path": raw_video_frame_path, "video_feature_path": video_feature_path,
                             "video_frame_name": video_frame_name, \
@@ -301,29 +303,33 @@ def main_match_train(mode, config, model_dir=None):
                             "label": label_all})
     df_info.to_csv("pair_data_info_{}.csv".format(mode), index=False, encoding="utf8")
 
+    count = 0
     for p1, p1_feature_path, p1_name, p2, p2_feature_path, p2_name in zip(raw_video_frame_path, video_feature_path,
                                                                           video_frame_name, \
                                                                           raw_img_path, img_feature_path, img_name):
-        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
-        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
-                                                                         augment=False, augmentation=None)
+
+        count += 1
+        if count % 10 == 0:
+            print('2222 match train', count)
+
+        image_1 = load_image_gt_v2(p1, config)
         rcnn_model.save_dataset(image_1, p1_feature_path, p1_name)
 
-        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
-        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
-                                                                         augment=False,
-                                                                         augmentation=None)
+        image_2 = load_image_gt_v2(p2, config)
+
+        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
         rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
 
 
 def main_match_test(mode, config, model_dir=None):
-    from lib.model_new import load_image_gt
-
-    dataset_train = DeepFashion2Dataset()
-    dataset_train.load_coco(config.train_img_dir, config.train_json_path)
-    dataset_train.prepare()
+    # dataset_train = DeepFashion2Dataset()
+    # dataset_train.load_coco(config.train_img_dir, config.train_json_path)
+    # dataset_train.prepare()
 
     test_video_path_list, test_img_path_list = get_mn_test_image_pair()
+
+    # todo
+    test_video_path_list, test_img_path_list = test_video_path_list[:1000], test_img_path_list[:1000]
     images = []
 
     rcnn_model = Get_RCNN_Feature(mode, config, model_dir)
@@ -360,25 +366,26 @@ def main_match_test(mode, config, model_dir=None):
             img_feature_path.append("{}_data_feature/image_feature/".format(mode) + p2_image_path)
 
             count += 1
-
+            if count % 10 == 0:
+                print('3333 match test', count)
     df_info = pd.DataFrame({"raw_video_frame_path": raw_video_frame_path, "video_feature_path": video_feature_path,
                             "video_frame_name": video_frame_name, \
                             "raw_img_path": raw_img_path, "img_feature_path": img_feature_path, "img_name": img_name,
                             })
     df_info.to_csv("pair_data_info_{}.csv".format(mode), index=False, encoding="utf8")
-
+    count = 0
     for p1, p1_feature_path, p1_name, p2, p2_feature_path, p2_name in zip(raw_video_frame_path, video_feature_path,
                                                                           video_frame_name, \
                                                                           raw_img_path, img_feature_path, img_name):
-        image_id_1 = int(p1.split('/')[-2].lstrip('0'))
-        image_1, image_meta_1, class_ids_1, bbox_array_1 = load_image_gt(dataset_train, config, image_id_1,
-                                                                         augment=False, augmentation=None)
+        count += 1
+        if count % 50 == 0:
+            print('4444  match test', count)
+        image_1 = load_image_gt_v2(p1, config)
         rcnn_model.save_dataset(image_1, p1_feature_path, p1_name)
 
-        image_id_2 = int(p2.split('/')[-2].lstrip('0'))
-        image_2, image_meta_2, class_ids_2, bbox_array_2 = load_image_gt(dataset_train, config, image_id_2,
-                                                                         augment=False,
-                                                                         augmentation=None)
+        image_2 = load_image_gt_v2(p2, config)
+
+        rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
         rcnn_model.save_dataset(image_2, p2_feature_path, p2_name)
 
 
@@ -456,10 +463,11 @@ if __name__ == "__main__":
         config = InferenceConfig()
     # config.display()
     from tools.data_utils import find_last
-    model_dir=find_last()
-    if args.command=='train':
+
+    model_dir = find_last()
+    if args.command == 'train':
         main_match_train(mode=args.command, config=config, model_dir=model_dir)
-    elif args.command=='test':
+    elif args.command == 'test':
         main_match_test(mode=args.command, config=config, model_dir=model_dir)
     else:
         raise Exception('args command error!')

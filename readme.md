@@ -13,7 +13,7 @@ python3 main.py --command test --weights last
 ## 1.训练数据特征构造
 python3 main_mn_get_feature_nopair.py  --weights last --command train
 ## 2.训练数据
-python3 match_model_train_v1.py pair_data_info.csv
+python3 match_model_train_v1.py pair_data_info_train.csv
 ## 3.测试数据特征构造
 python3 main_mn_get_feature_nopair.py --command test
 ## 4.测试数据

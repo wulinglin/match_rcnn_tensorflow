@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+git# -*- coding: utf-8 -*-
 import json
 import os
 import time
@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+import constant
 from tools import data_utils
 
 mode_name = "matchcnn"
@@ -102,8 +103,8 @@ if __name__ == '__main__':
     result_all_pred = []
     count = 0
     result_all_pred_dict = {}
+
     for f1, f2, i1, i2 in zip(frame_fea1_path, frame_fea2_path, image_fea1_path, image_fea2_path):
-        print(f1,i1)
         video_id = data_utils.get_item_id_by_path(f1)
         item_id = data_utils.get_item_id_by_path(i1)
         frame_fea1 = np.load(f1)
@@ -111,7 +112,8 @@ if __name__ == '__main__':
         image_fea1 = np.load(i1)
         image_fea2 = np.load(i2)
         prediction = model.predict([frame_fea1], [image_fea1], [frame_fea2], [image_fea2])
-        print("prediction:", prediction[0])
+
+        print('prediction:', count,prediction[0][1])
 
         result_all_pred.append(prediction[0][1])
         if video_id in result_all_pred_dict:
@@ -121,14 +123,14 @@ if __name__ == '__main__':
             result_all_pred_dict[video_id] = {'item_ids': [item_id],
                                               'pred_scores': [prediction[0][1]]}
         count += 1
-        if count % 500 == 0:
+        if count % 50 == 0:
             print("model has prossed number :" + str(count))
 
     result_dict = {}
     for key, val in result_all_pred_dict.items():
         result_dict[key] = val['item_ids'][val['pred_scores'].index(max(val['pred_scores']))]
 
-    with open("match_result.json", 'w+') as fp:
+    with open(constant.test_match_result_path, 'w+') as fp:
         json.dump(result_dict, fp, ensure_ascii=False)
     test_df["predict_label"] = result_all_pred
 

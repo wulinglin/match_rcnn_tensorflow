@@ -37,7 +37,6 @@ def video_split_and_save(data_dir, save_dir):
     start_time = time.time()
     count = 0
     for parents, dirs, filenames in os.walk(data_dir):
-        print(parents, dirs, filenames)
         # if parents == DATA_DIR:
         #     continue
 
@@ -47,10 +46,15 @@ def video_split_and_save(data_dir, save_dir):
         f = parents.split("/")[1]
         save_path = save_dir + "/"
         # 对每视频数据进行遍历
+        len_f = len(filenames)
+        count_f = 0
         for file in filenames:
-            count+=1
-            if count>100: # todo
-                break
+            count += 1
+            count_f += 1
+            # if count > 100:  # todo
+            #     break
+            if count_f%50==0:
+                print(count_f, len_f)
             file_name = file.split(".")[0]
             save_path_ = save_path + "/" + file_name
             if not os.path.isdir(save_path_):
@@ -59,7 +63,7 @@ def video_split_and_save(data_dir, save_dir):
             video_split(video_path, save_path_)
 
     end_time = time.time()
-    print("Cost time", start_time - end_time)
+    print("Cost time", end_time - start_time)
 
 
 def json_data_view():
@@ -88,6 +92,56 @@ def json_data_view():
         print(i.keys())
         print(i)
 
+
+def thread_video_split(data_dir, save_dir):
+    import threadpool
+    start_time = time.time()
+
+    def get_dir(data_dir, save_dir):
+        video_path_and_save_path_list = []
+        count = 0
+        for parents, dirs, filenames in os.walk(data_dir):
+            print("正在处理文件夹", parents)
+            # path = parents.replace("/", "//")
+            path = parents
+            f = parents.split("/")[1]
+            save_path = save_dir + "/"
+            # 对每视频数据进行遍历
+            len_f = len(filenames)
+            count_f = 0
+            for file in filenames:
+                count += 1
+                count_f += 1
+                file_name = file.split(".")[0]
+                save_path_ = save_path + "/" + file_name
+                video_path = path + "/" + file
+
+                video_path_and_save_path_list.append((video_path, save_path_))
+        print(video_path_and_save_path_list)
+        return video_path_and_save_path_list
+
+    def run(video_path_and_save_path_list):
+        """
+        主函数
+        """
+        for video_path, save_path_ in video_path_and_save_path_list:
+            if not os.path.isdir(save_path_):
+                os.makedirs(save_path_)
+            video_split(video_path, save_path_)
+
+    # 参数列表
+    args = get_dir(data_dir, save_dir)
+    end_time = time.time()
+    print("Cost time get_dir", start_time - end_time)
+    print('start threading....!')
+    # 使用多线程启动
+    pool = threadpool.ThreadPool(10)
+    requests = threadpool.makeRequests(run, [args])
+    [pool.putRequest(req) for req in requests]
+    pool.wait()
+
+    end_time = time.time()
+    print("Cost time thread cut", start_time - end_time)
 
 # if __name__ == "__main__":
 #     from constant import video_path_head, video_path_raw

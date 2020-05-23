@@ -42,7 +42,7 @@ def get_mn_test_image_pair():
     for img_path in os.listdir(image_path_head):
         image_path_ = test_image_path + img_path + '/' + '0.jpg'
         test_img_path_list.append(image_path_)
-    return test_video_path_list,test_img_path_list
+    return test_video_path_list, test_img_path_list
 
 
 def load_image(image_path):
